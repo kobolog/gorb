@@ -66,6 +66,4 @@ func main() {
 
 	log.Infof("setting up HTTP server on :%d", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
-
-	log.Info("bye")
 }
