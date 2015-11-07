@@ -52,13 +52,13 @@ func main() {
 
 	r := mux.NewRouter()
 
-	r.Handle("/service/{vsID}", &serviceCreateHandler{ctx}).Methods("PUT")
-	r.Handle("/service/{vsID}/{rsID}", &backendCreateHandler{ctx}).Methods("PUT")
-	r.Handle("/service/{vsID}/{rsID}", &backendUpdateHandler{ctx}).Methods("PATCH")
-	r.Handle("/service/{vsID}", &serviceRemoveHandler{ctx}).Methods("DELETE")
-	r.Handle("/service/{vsID}/{rsID}", &backendRemoveHandler{ctx}).Methods("DELETE")
-	r.Handle("/service/{vsID}", &serviceStatusHandler{ctx}).Methods("GET")
-	r.Handle("/service/{vsID}/{rsID}", &backendStatusHandler{ctx}).Methods("GET")
+	r.Handle("/service/{vsID}", serviceCreateHandler{ctx}).Methods("PUT")
+	r.Handle("/service/{vsID}/{rsID}", backendCreateHandler{ctx}).Methods("PUT")
+	r.Handle("/service/{vsID}/{rsID}", backendUpdateHandler{ctx}).Methods("PATCH")
+	r.Handle("/service/{vsID}", serviceRemoveHandler{ctx}).Methods("DELETE")
+	r.Handle("/service/{vsID}/{rsID}", backendRemoveHandler{ctx}).Methods("DELETE")
+	r.Handle("/service/{vsID}", serviceStatusHandler{ctx}).Methods("GET")
+	r.Handle("/service/{vsID}/{rsID}", backendStatusHandler{ctx}).Methods("GET")
 
 	// While it's not strictly required, close IPVS socket explicitly.
 	defer ctx.Close()

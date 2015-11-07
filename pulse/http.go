@@ -33,11 +33,11 @@ type httpPulse struct {
 	Driver
 
 	url    string
-	client *http.Client
+	client http.Client
 }
 
 func newHTTPDriver(address string, port uint16, opts *Options) Driver {
-	httpClient := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(
+	httpClient := http.Client{Timeout: 5 * time.Second, CheckRedirect: func(
 		req *http.Request,
 		via []*http.Request,
 	) error {

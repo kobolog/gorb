@@ -56,7 +56,7 @@ type serviceCreateHandler struct {
 	ctx *core.Context
 }
 
-func (h *serviceCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h serviceCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
 		opts core.ServiceOptions
 		vars = mux.Vars(r)
@@ -73,7 +73,7 @@ type backendCreateHandler struct {
 	ctx *core.Context
 }
 
-func (h *backendCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h backendCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
 		opts core.BackendOptions
 		vars = mux.Vars(r)
@@ -90,7 +90,7 @@ type backendUpdateHandler struct {
 	ctx *core.Context
 }
 
-func (h *backendUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h backendUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
 		opts core.BackendOptions
 		vars = mux.Vars(r)
@@ -107,7 +107,7 @@ type serviceRemoveHandler struct {
 	ctx *core.Context
 }
 
-func (h *serviceRemoveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h serviceRemoveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	if _, err := h.ctx.RemoveService(vars["vsID"]); err != nil {
@@ -119,7 +119,7 @@ type backendRemoveHandler struct {
 	ctx *core.Context
 }
 
-func (h *backendRemoveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h backendRemoveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	if _, err := h.ctx.RemoveBackend(vars["vsID"], vars["rsID"]); err != nil {
@@ -131,7 +131,7 @@ type serviceStatusHandler struct {
 	ctx *core.Context
 }
 
-func (h *serviceStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h serviceStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	if opts, err := h.ctx.GetService(vars["vsID"]); err != nil {
@@ -145,7 +145,7 @@ type backendStatusHandler struct {
 	ctx *core.Context
 }
 
-func (h *backendStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h backendStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	if opts, err := h.ctx.GetBackend(vars["vsID"], vars["rsID"]); err != nil {

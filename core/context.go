@@ -49,7 +49,7 @@ type backend struct {
 
 // Context abstacts away the underlying IPVS bindings implementation.
 type Context struct {
-	ipvs     *gnl2go.IpvsClient
+	ipvs     gnl2go.IpvsClient
 	services map[string]*service
 	backends map[string]*backend
 	mtx      sync.RWMutex
@@ -61,7 +61,7 @@ func NewContext(options ContextOptions) (*Context, error) {
 	log.Info("initializing IPVS context")
 
 	ctx := &Context{
-		ipvs:     &gnl2go.IpvsClient{},
+		ipvs:     gnl2go.IpvsClient{},
 		services: make(map[string]*service),
 		backends: make(map[string]*backend),
 		pulseCh:  make(chan pulse.Status),
