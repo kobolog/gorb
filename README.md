@@ -10,7 +10,7 @@ Backends which fail to pass the health check will have their weights set to zero
 
 # REST API
 
-- `PUT /service/<service>` creates a new virtual service with provided options. Payload format is as follows:
+- `PUT /service/<service>` creates a new virtual service with provided options:
 ```json
 {
     "address": "10.0.0.1",
@@ -20,7 +20,7 @@ Backends which fail to pass the health check will have their weights set to zero
     "persistent": true
 }
 ```
-- `PUT /service/<service>/<backend>` creates a new backend attached to a virtual service. Payload:
+- `PUT /service/<service>/<backend>` creates a new backend attached to a virtual service:
 ```json
 {
     "address": "10.1.0.1",
@@ -29,7 +29,7 @@ Backends which fail to pass the health check will have their weights set to zero
     "pulse": {
         "type": "tcp|http",
         "interval": "5s",
-        "path": "/health"
+        "path": "/health (ignored for tcp pulse)"
     },
     "weight": 128
 }
