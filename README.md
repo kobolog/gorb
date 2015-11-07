@@ -27,7 +27,7 @@ Backends which fail to pass the health check will have their weights set to zero
     "port": 12346,
     "method": "nat|tunnel",
     "pulse": {
-        "type": "tcp|http",
+        "type": "none|tcp|http",
         "interval": "5s",
         "path": "/health (ignored for tcp pulse)"
     },
