@@ -76,7 +76,7 @@ func NewContext(options ContextOptions) (*Context, error) {
 	}
 
 	if options.Flush && ctx.ipvs.Flush() != nil {
-		log.Errorf("unable to clean up IPVS tables")
+		log.Errorf("unable to clean up IPVS pools")
 		ctx.Close()
 		return nil, ErrIpvsSyscallFailed
 	}
@@ -91,12 +91,12 @@ func NewContext(options ContextOptions) (*Context, error) {
 func (ctx *Context) Close() {
 	log.Info("shutting down IPVS context")
 
+	// This will also shutdown the pulse notification sink goroutine.
+	close(ctx.pulseCh)
+
 	for vsID := range ctx.services {
 		ctx.RemoveService(vsID)
 	}
-
-	// This will also shutdown the pulse notification sink goroutine.
-	close(ctx.pulseCh)
 
 	// This is not strictly required, as far as I know.
 	ctx.ipvs.Exit()
@@ -313,7 +313,7 @@ func (ctx *Context) GetBackend(vsID, rsID string) (*BackendInfo, error) {
 	ctx.mtx.RUnlock()
 
 	if !exists {
-		log.Errorf("unable to find backend [%s]", rsID)
+		log.Errorf("unable to find backend [%s/%s]", vsID, rsID)
 		return nil, ErrObjectNotFound
 	}
 
