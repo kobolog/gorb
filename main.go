@@ -22,7 +22,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"net/http"
 	"os"
 
@@ -33,8 +32,8 @@ import (
 )
 
 var (
-	port  = flag.Int("p", 8080, "port to bind GORB server to")
-	flush = flag.Bool("f", false, "flush IPVS tables on start")
+	listen = flag.String("l", ":8080", "endpoint to listen for HTTP connection")
+	flush  = flag.Bool("f", false, "flush IPVS tables on start")
 )
 
 func main() {
@@ -64,6 +63,6 @@ func main() {
 	// While it's not strictly required, close IPVS socket explicitly.
 	defer ctx.Close()
 
-	log.Infof("setting up HTTP server on :%d", *port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
+	log.Infof("setting up HTTP server on '%s'", *listen)
+	log.Fatal(http.ListenAndServe(*listen, r))
 }
