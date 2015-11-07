@@ -20,21 +20,69 @@
 
 package pulse
 
-// Pulse is an interface for an active health check for a backend.
-type Pulse interface {
-	Loop(ID, chan Status)
-	Stop()
-	Info() Metrics
+import (
+	"time"
+
+	log "github.com/sirupsen/logrus"
+)
+
+// Driver provides the actual health check for Pulse.
+type Driver interface {
+	Check() StatusType
+}
+
+// Pulse is an health check manager for a backend.
+type Pulse struct {
+	driver   Driver
+	interval time.Duration
+	stopChan chan struct{}
+	metrics  *Metrics
 }
 
 // New creates a new Pulse from the provided endpoint and options.
-func New(address string, port uint16, opts *Options) Pulse {
+func New(address string, port uint16, opts *Options) *Pulse {
+	var driver Driver
+
 	switch opts.Type {
 	case "tcp":
-		return NewTCPPulse(address, port, opts)
+		driver = newTCPDriver(address, port, opts)
 	case "http":
-		return NewHTTPPulse(address, port, opts)
-	default:
-		return nil
+		driver = newHTTPDriver(address, port, opts)
 	}
+
+	return &Pulse{driver, opts.interval, make(chan struct{}, 1), NewMetrics()}
+}
+
+// Loop starts the Pulse.
+func (p *Pulse) Loop(id ID, pulseCh chan Status) {
+	log.Infof("starting pulse for %s", id)
+
+	for {
+		select {
+		case <-time.After(p.interval):
+			status := Status{id, p.driver.Check()}
+
+			// Report the backend status to Context.
+			pulseCh <- status
+
+			// Recalculate metrics and statistics.
+			p.metrics.Update(status)
+
+		case <-p.stopChan:
+			log.Infof("stopping pulse for %s", id)
+			return
+		}
+
+		log.Debugf("%s pulse: %s", id, p.metrics.Status)
+	}
+}
+
+// Stop stops the Pulse.
+func (p *Pulse) Stop() {
+	p.stopChan <- struct{}{}
+}
+
+// Info returns Pulse metrics and statistics.
+func (p *Pulse) Info() Metrics {
+	return *p.metrics
 }

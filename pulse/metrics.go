@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-// Metrics contain statistical information about backend's pulse.
+// Metrics contain statistical information about backend's Pulse.
 type Metrics struct {
 	Status StatusType    `json:"status"`
 	Health float64       `json:"health"`
@@ -40,7 +40,7 @@ func NewMetrics() *Metrics {
 	return &Metrics{Status: StatusUp, Health: 1, Uptime: 0, lastTs: time.Now()}
 }
 
-// Update updates metrics based on pulse's status message.
+// Update updates metrics based on Pulse status message.
 func (m *Metrics) Update(status Status) {
 	m.Status = status.Result
 	m.Health = 0

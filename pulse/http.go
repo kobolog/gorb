@@ -30,17 +30,13 @@ import (
 )
 
 type httpPulse struct {
-	Pulse
+	Driver
 
-	url      string
-	interval time.Duration
-	client   *http.Client
-	stopChan chan struct{}
-	metrics  *Metrics
+	url    string
+	client *http.Client
 }
 
-// NewHTTPPulse creates a new httpPulse.
-func NewHTTPPulse(address string, port uint16, opts *Options) Pulse {
+func newHTTPDriver(address string, port uint16, opts *Options) Driver {
 	httpClient := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(
 		req *http.Request,
 		via []*http.Request,
@@ -53,50 +49,19 @@ func NewHTTPPulse(address string, port uint16, opts *Options) Pulse {
 	}}
 
 	return &httpPulse{
-		url:      fmt.Sprintf("http://%s:%d/%s", address, port, opts.Path),
-		interval: opts.interval,
-		client:   httpClient,
-		stopChan: make(chan struct{}, 1),
-		metrics:  NewMetrics(),
+		url:    fmt.Sprintf("http://%s:%d/%s", address, port, opts.Path),
+		client: httpClient,
 	}
 }
 
-// Loop starts the httpPulse reactor.
-func (p *httpPulse) Loop(id ID, pulseCh chan Status) {
-	log.Infof("starting HTTP pulse for %s", p.url)
-
-	for {
-		select {
-		case <-time.After(p.interval):
-			msg := Status{id, StatusDown}
-
-			if r, err := p.client.Get(p.url); err != nil {
-				log.Errorf("error while communicating with %s: %s", p.url, err)
-			} else if r.StatusCode != 200 {
-				log.Errorf("received non-200 status code from %s", p.url)
-			} else {
-				msg.Result = StatusUp
-			}
-
-			// Report the backend status to context.
-			pulseCh <- msg
-
-			// Recalculate metrics and statistics.
-			p.metrics.Update(msg)
-
-		case <-p.stopChan:
-			log.Infof("stopping HTTP pulse for %s", p.url)
-			return
-		}
+func (p *httpPulse) Check() StatusType {
+	if r, err := p.client.Get(p.url); err != nil {
+		log.Errorf("error while communicating with %s: %s", p.url, err)
+	} else if r.StatusCode != 200 {
+		log.Errorf("received non-200 status code from %s", p.url)
+	} else {
+		return StatusUp
 	}
-}
 
-// Stop stops the httpPulse reactor.
-func (p *httpPulse) Stop() {
-	p.stopChan <- struct{}{}
-}
-
-// Info returns the httpPulse metrics.
-func (p *httpPulse) Info() Metrics {
-	return *p.metrics
+	return StatusDown
 }

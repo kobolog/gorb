@@ -36,7 +36,7 @@ var (
 	ErrUnknownMethod   = errors.New("specified forwarding method is unknown")
 )
 
-// ContextOptions configure context behavior.
+// ContextOptions configure Context behavior.
 type ContextOptions struct {
 	Flush bool
 }

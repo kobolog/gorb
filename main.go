@@ -63,6 +63,6 @@ func main() {
 	// While it's not strictly required, close IPVS socket explicitly.
 	defer ctx.Close()
 
-	log.Infof("setting up HTTP server on '%s'", *listen)
+	log.Infof("setting up HTTP server on %s", *listen)
 	log.Fatal(http.ListenAndServe(*listen, r))
 }

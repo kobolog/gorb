@@ -44,7 +44,7 @@ type service struct {
 type backend struct {
 	options *BackendOptions
 	service *service
-	monitor pulse.Pulse
+	monitor *pulse.Pulse
 }
 
 // Context abstacts away the underlying IPVS bindings implementation.
@@ -87,7 +87,7 @@ func NewContext(options ContextOptions) (*Context, error) {
 	return ctx, nil
 }
 
-// Close shuts down IPVS and closes the context.
+// Close shuts down IPVS and closes the Context.
 func (ctx *Context) Close() {
 	log.Info("shutting down IPVS context")
 
@@ -108,13 +108,13 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 		return err
 	}
 
-	log.Infof("creating virtual service '%s' on %s:%d", vsID, opts.Address, opts.Port)
+	log.Infof("creating virtual service [%s] on %s:%d", vsID, opts.Address, opts.Port)
 
 	ctx.mtx.Lock()
 	defer ctx.mtx.Unlock()
 
 	if _, exists := ctx.services[vsID]; exists {
-		log.Errorf("virtual service '%s' already exists", vsID)
+		log.Errorf("virtual service [%s] already exists", vsID)
 		return ErrObjectExists
 	}
 
@@ -139,7 +139,7 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 		return err
 	}
 
-	log.Infof("creating backend on %s:%d for virtual service '%s'",
+	log.Infof("creating backend on %s:%d for virtual service [%s]",
 		opts.Address,
 		opts.Port,
 		vsID)
@@ -148,14 +148,14 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 	defer ctx.mtx.Unlock()
 
 	if _, exists := ctx.backends[rsID]; exists {
-		log.Errorf("backend '%s' already exists", vsID)
+		log.Errorf("backend [%s/%s] already exists", vsID, rsID)
 		return ErrObjectExists
 	}
 
 	vs, exists := ctx.services[vsID]
 
 	if !exists {
-		log.Errorf("unable to find parent virtual service '%s'", vsID)
+		log.Errorf("unable to find parent virtual service [%s]", vsID)
 		return ErrObjectNotFound
 	}
 
@@ -179,7 +179,7 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 
 	ctx.backends[rsID] = backend
 
-	// Fire off the configured pulse goroutine and attach it to the context.
+	// Fire off the configured pulse goroutine and attach it to the Context.
 	go backend.monitor.Loop(pulse.ID{vsID, rsID}, ctx.pulseCh)
 
 	return nil
@@ -193,7 +193,7 @@ func (ctx *Context) UpdateBackend(vsID, rsID string, opts *BackendOptions) (*Bac
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
-		log.Errorf("unable to find backend '%s'", rsID)
+		log.Errorf("unable to find backend [%s/%s]", vsID, rsID)
 		return nil, ErrObjectNotFound
 	}
 
@@ -206,7 +206,7 @@ func (ctx *Context) UpdateBackend(vsID, rsID string, opts *BackendOptions) (*Bac
 		int32(opts.Weight),
 		rs.options.method,
 	); err != nil {
-		log.Errorf("error while updating backend '%s'", rsID)
+		log.Errorf("error while updating backend [%s/%s]", vsID, rsID)
 		return nil, ErrIpvsSyscallFailed
 	}
 
@@ -226,7 +226,7 @@ func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 	vs, exists := ctx.services[vsID]
 
 	if !exists {
-		log.Errorf("unable to find virtual service '%s'", vsID)
+		log.Errorf("unable to find virtual service [%s]", vsID)
 		return nil, ErrObjectNotFound
 	}
 
@@ -246,7 +246,7 @@ func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 		vs.options.Port,
 		vs.options.protocol,
 	); err != nil {
-		log.Errorf("error while removing virtual service '%s'", vsID)
+		log.Errorf("error while removing virtual service [%s]", vsID)
 		return nil, ErrIpvsSyscallFailed
 	}
 
@@ -263,7 +263,7 @@ func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
-		log.Errorf("unable to find backend '%s'", rsID)
+		log.Errorf("unable to find backend [%s/%s]", vsID, rsID)
 		return nil, ErrObjectNotFound
 	}
 
@@ -277,7 +277,7 @@ func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
 		rs.options.Port,
 		rs.service.options.protocol,
 	); err != nil {
-		log.Errorf("error while removing backend '%s'", rsID)
+		log.Errorf("error while removing backend [%s/%s]", vsID, rsID)
 		return nil, ErrIpvsSyscallFailed
 	}
 
@@ -293,7 +293,7 @@ func (ctx *Context) GetService(vsID string) (*ServiceOptions, error) {
 	ctx.mtx.RUnlock()
 
 	if !exists {
-		log.Errorf("unable to find virtual service '%s'", vsID)
+		log.Errorf("unable to find virtual service [%s]", vsID)
 		return nil, ErrObjectNotFound
 	}
 
@@ -313,7 +313,7 @@ func (ctx *Context) GetBackend(vsID, rsID string) (*BackendInfo, error) {
 	ctx.mtx.RUnlock()
 
 	if !exists {
-		log.Errorf("unable to find backend '%s'", rsID)
+		log.Errorf("unable to find backend [%s]", rsID)
 		return nil, ErrObjectNotFound
 	}
 

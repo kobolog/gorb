@@ -28,63 +28,27 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// tcpPulse checks a service health with TCP connection probes.
 type tcpPulse struct {
-	Pulse
+	Driver
 
 	endpoint string
-	interval time.Duration
 	dialer   net.Dialer
-	stopChan chan struct{}
-	metrics  *Metrics
 }
 
-// NewTCPPulse creates a new tcpPulse.
-func NewTCPPulse(address string, port uint16, opts *Options) Pulse {
+func newTCPDriver(address string, port uint16, opts *Options) Driver {
 	return &tcpPulse{
 		endpoint: fmt.Sprintf("%s:%d", address, port),
-		interval: opts.interval,
 		dialer:   net.Dialer{DualStack: true, Timeout: 5 * time.Second},
-		stopChan: make(chan struct{}, 1),
-		metrics:  NewMetrics(),
 	}
 }
 
-// Loop starts the tcpPulse reactor.
-func (p *tcpPulse) Loop(id ID, pulseCh chan Status) {
-	log.Infof("starting TCP pulse for %s", p.endpoint)
-
-	for {
-		select {
-		case <-time.After(p.interval):
-			msg := Status{id, StatusDown}
-
-			if con, err := p.dialer.Dial("tcp", p.endpoint); err != nil {
-				log.Errorf("unable to connect to %s", p.endpoint)
-			} else {
-				msg.Result = StatusUp
-				con.Close()
-			}
-
-			// Report the backend status to context.
-			pulseCh <- msg
-
-			// Recalculate metrics and statistics.
-			p.metrics.Update(msg)
-
-		case <-p.stopChan:
-			log.Infof("stopping TCP pulse for %s", p.endpoint)
-			return
-		}
+func (p *tcpPulse) Check() StatusType {
+	if socket, err := p.dialer.Dial("tcp", p.endpoint); err != nil {
+		log.Errorf("unable to connect to %s", p.endpoint)
+	} else {
+		socket.Close()
+		return StatusUp
 	}
-}
 
-// Stop stops the tcpPulse reactor.
-func (p *tcpPulse) Stop() {
-	p.stopChan <- struct{}{}
-}
-
-// Info returns the tcpPulse metrics.
-func (p *tcpPulse) Info() Metrics {
-	return *p.metrics
+	return StatusDown
 }

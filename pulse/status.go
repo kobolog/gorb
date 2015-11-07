@@ -20,13 +20,17 @@
 
 package pulse
 
-// StatusType represents the backend's pulse status code.
+import (
+	"fmt"
+)
+
+// StatusType represents the backend's Pulse status code.
 type StatusType int
 
 const (
 	// StatusUp means the backend is up and healthy.
 	StatusUp StatusType = iota
-	// StatusDown means the backend is not responding to pulse.
+	// StatusDown means the backend is not responding to Pulse.
 	StatusDown
 )
 
@@ -41,12 +45,16 @@ func (status StatusType) String() string {
 	return "Unknown"
 }
 
-// ID is a (vsID, rsID) tuple used in pulse notifications.
+// ID is a (vsID, rsID) tuple used in Pulse notifications.
 type ID struct {
 	VsID, RsID string
 }
 
-// Status is a pulse notification.
+func (id ID) String() string {
+	return fmt.Sprintf("[%s/%s]", id.VsID, id.RsID)
+}
+
+// Status is a Pulse notification.
 type Status struct {
 	Source ID
 	Result StatusType

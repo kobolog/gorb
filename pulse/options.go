@@ -35,7 +35,7 @@ var (
 	ErrInvalidPulseInterval = errors.New("pulse interval must be positive")
 )
 
-// Options contain pulse configuration.
+// Options contain Pulse configuration.
 type Options struct {
 	Type     string `json:"type"`
 	Interval string `json:"interval"`
@@ -44,7 +44,7 @@ type Options struct {
 	interval time.Duration
 }
 
-// Validate fills missing fields and validates pulse configuration.
+// Validate fills missing fields and validates Pulse configuration.
 func (o *Options) Validate() error {
 	if len(o.Type) == 0 {
 		o.Type, o.Interval = "tcp", "1m"
@@ -54,7 +54,7 @@ func (o *Options) Validate() error {
 
 	switch o.Type {
 	case "tcp":
-		// Nothing special for this pulse type.
+		// Nothing special for this Pulse type.
 	case "http":
 		if len(o.Path) == 0 {
 			return ErrMissingHTTPPulsePath

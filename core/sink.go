@@ -52,6 +52,6 @@ func pulseSink(ctx *Context) {
 			}
 		}
 
-		log.Warnf("backend '%s/%s' status changed: '%s'", vsID, rsID, status.Result)
+		log.Warnf("backend %s status changed: %s", status.Source, status.Result)
 	}
 }
