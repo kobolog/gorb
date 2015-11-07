@@ -30,6 +30,7 @@ import (
 	"github.com/tehnerd/gnl2go"
 )
 
+// Possible validation errors.
 var (
 	ErrMissingEndpoint = errors.New("endpoint information is missing")
 	ErrUnknownMethod   = errors.New("specified forwarding method is unknown")

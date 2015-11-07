@@ -30,6 +30,7 @@ import (
 	"github.com/tehnerd/gnl2go"
 )
 
+// Possible runtime errors.
 var (
 	ErrIpvsSyscallFailed = errors.New("error while calling into IPVS")
 	ErrObjectExists      = errors.New("specified object already exists")
@@ -55,7 +56,7 @@ type Context struct {
 	pulseCh  chan pulse.Status
 }
 
-// NewContext creates a new context and initializes IPVS.
+// NewContext creates a new Context and initializes IPVS.
 func NewContext(options ContextOptions) (*Context, error) {
 	log.Info("initializing IPVS context")
 

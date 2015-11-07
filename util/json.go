@@ -38,11 +38,16 @@ func MustMarshal(object interface{}, options JSONOptions) []byte {
 		panic(err)
 	}
 
-	if options.Indent {
-		buffer := new(bytes.Buffer)
-		json.Indent(buffer, output, "", "\t")
+	switch {
+	case options.Indent:
+		buffer := bytes.Buffer{}
+
+		// TODO(@kobolog): Expose indentation options via JSONOptions.
+		json.Indent(&buffer, output, "", "\t")
+
 		return buffer.Bytes()
-	} else {
+
+	default:
 		return output
 	}
 }

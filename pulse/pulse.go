@@ -27,6 +27,7 @@ type Pulse interface {
 	Info() Metrics
 }
 
+// New creates a new Pulse from the provided endpoint and options.
 func New(address string, port uint16, opts *Options) Pulse {
 	switch opts.Type {
 	case "tcp":

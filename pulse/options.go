@@ -28,6 +28,7 @@ import (
 	"github.com/kobolog/gorb/util"
 )
 
+// Possible validation errors.
 var (
 	ErrMissingHTTPPulsePath = errors.New("path for HTTP pulse is missing")
 	ErrUnknownPulseType     = errors.New("specified pulse type is unknown")
@@ -38,7 +39,7 @@ var (
 type Options struct {
 	Type     string `json:"type"`
 	Interval string `json:"interval"`
-	Path     string `json:"path",omitempty`
+	Path     string `json:"path,omitempty"`
 
 	interval time.Duration
 }
