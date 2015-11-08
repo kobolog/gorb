@@ -8,12 +8,21 @@ This daemon is actually an IPVS frontend with REST API interface. You can use it
 
 Backends which fail to pass the health check will have their weights set to zero to inhibit any traffic from being routed their direction. Other than that, it can't do anything fancy yet.
 
+# Configuration
+
+There's not much of a configuration required. The only few options can be specified on the command line:
+
+    gorb [-l <listen-address>] [-d <device>] [-f flush-pools] | -h
+
+By default, GORB will listen on `:4672`, bind services on `eth0` and keep your IPVS pool intact on launch.
+
 # REST API
 
-- `PUT /service/<service>` creates a new virtual service with provided options:
+- `PUT /service/<service>` creates a new virtual service with provided options. If `host` is omitted, GORB will pick an
+address automatically based on the configured default device:
 ```json
 {
-    "address": "10.0.0.1",
+    "host": "10.0.0.1",
     "port": 12345,
     "protocol": "tcp|udp",
     "method": "rr|wrr|lc|wlc|lblc|lblcr|sh|dh|sed|nq",
@@ -23,7 +32,7 @@ Backends which fail to pass the health check will have their weights set to zero
 - `PUT /service/<service>/<backend>` creates a new backend attached to a virtual service:
 ```json
 {
-    "address": "10.1.0.1",
+    "host": "10.1.0.1",
     "port": 12346,
     "method": "nat|tunnel",
     "pulse": {
@@ -44,6 +53,8 @@ For more information and various configuration options description, consult [`ma
 # TODO
 
 - Add more options for Gorb Pulse: thresholds, HTTP verbs and expected responses, exponential back-offs and so on.
+- Support for IPVS statistics (requires GNL2GO support first).
+- Support for FWMARK virtual services.
 - Add BGP host-route announces, so that multiple GORBs could expose a service on the same IP across the cluster.
 - Add some primitive UI to present the same action palette but in an user-friendly fashion.
 - Optional: add dynamic DNS support, so that GORBs could register new service names on some specified subdomain.

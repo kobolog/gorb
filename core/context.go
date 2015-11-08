@@ -22,9 +22,11 @@ package core
 
 import (
 	"errors"
+	"net"
 	"sync"
 
 	"github.com/kobolog/gorb/pulse"
+	"github.com/kobolog/gorb/util"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/tehnerd/gnl2go"
@@ -35,6 +37,7 @@ var (
 	ErrIpvsSyscallFailed = errors.New("error while calling into IPVS")
 	ErrObjectExists      = errors.New("specified object already exists")
 	ErrObjectNotFound    = errors.New("unable to locate specified object")
+	ErrIncompatibleAFs   = errors.New("incompatible address families")
 )
 
 type service struct {
@@ -50,9 +53,10 @@ type backend struct {
 // Context abstacts away the underlying IPVS bindings implementation.
 type Context struct {
 	ipvs     gnl2go.IpvsClient
+	endpoint net.IP
 	services map[string]*service
 	backends map[string]*backend
-	mtx      sync.RWMutex
+	mutex    sync.RWMutex
 	pulseCh  chan pulse.Status
 }
 
@@ -65,6 +69,11 @@ func NewContext(options ContextOptions) (*Context, error) {
 		services: make(map[string]*service),
 		backends: make(map[string]*backend),
 		pulseCh:  make(chan pulse.Status),
+	}
+
+	if len(options.Endpoints) > 0 {
+		// TODO(@kobolog): bind virtual services on multiple endpoints.
+		ctx.endpoint = options.Endpoints[0]
 	}
 
 	if err := ctx.ipvs.Init(); err != nil {
@@ -82,7 +91,7 @@ func NewContext(options ContextOptions) (*Context, error) {
 	}
 
 	// Fire off a pulse notifications sink goroutine.
-	go pulseSink(ctx)
+	go ctx.notificationLoop()
 
 	return ctx, nil
 }
@@ -104,22 +113,22 @@ func (ctx *Context) Close() {
 
 // CreateService registers a new virtual service with IPVS.
 func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
-	if err := opts.Validate(); err != nil {
+	if err := opts.Validate(ctx.endpoint); err != nil {
 		return err
 	}
 
-	log.Infof("creating virtual service [%s] on %s:%d", vsID, opts.Address, opts.Port)
-
-	ctx.mtx.Lock()
-	defer ctx.mtx.Unlock()
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
 
 	if _, exists := ctx.services[vsID]; exists {
-		log.Errorf("virtual service [%s] already exists", vsID)
 		return ErrObjectExists
 	}
 
+	log.Infof("creating virtual service [%s] on %s:%d", vsID, opts.host,
+		opts.Port)
+
 	if err := ctx.ipvs.AddService(
-		opts.Address,
+		opts.host.String(),
 		opts.Port,
 		opts.protocol,
 		opts.Method,
@@ -139,41 +148,44 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 		return err
 	}
 
-	log.Infof("creating backend on %s:%d for virtual service [%s]",
-		opts.Address,
-		opts.Port,
-		vsID)
-
-	ctx.mtx.Lock()
-	defer ctx.mtx.Unlock()
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
 
 	if _, exists := ctx.backends[rsID]; exists {
-		log.Errorf("backend [%s/%s] already exists", vsID, rsID)
 		return ErrObjectExists
 	}
 
 	vs, exists := ctx.services[vsID]
 
 	if !exists {
-		log.Errorf("unable to find parent virtual service [%s]", vsID)
 		return ErrObjectNotFound
 	}
 
+	if util.AddrFamily(opts.host) != util.AddrFamily(vs.options.host) {
+		return ErrIncompatibleAFs
+	}
+
+	log.Infof("creating backend [%s] on %s:%d for virtual service [%s]",
+		rsID,
+		opts.host,
+		opts.Port,
+		vsID)
+
 	if err := ctx.ipvs.AddDestPort(
-		vs.options.Address,
+		vs.options.host.String(),
 		vs.options.Port,
-		opts.Address,
+		opts.host.String(),
 		opts.Port,
 		vs.options.protocol,
 		int32(opts.Weight),
-		opts.method,
+		opts.methodId,
 	); err != nil {
-		log.Errorf("error while adding backend: %s", err)
+		log.Errorf("error while creating backend: %s", err)
 		return ErrIpvsSyscallFailed
 	}
 
 	backend := &backend{options: opts, service: vs, monitor: pulse.New(
-		opts.Address,
+		opts.host.String(),
 		opts.Port,
 		opts.Pulse)}
 
@@ -187,24 +199,28 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 
 // UpdateBackend updates the specified backend's weight - other options are ignored.
 func (ctx *Context) UpdateBackend(vsID, rsID string, opts *BackendOptions) (*BackendOptions, error) {
-	ctx.mtx.Lock()
-	defer ctx.mtx.Unlock()
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
 
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
-		log.Errorf("unable to find backend [%s/%s]", vsID, rsID)
 		return nil, ErrObjectNotFound
 	}
 
+	log.Infof("updating backend [%s/%s] with weight: %d",
+		vsID,
+		rsID,
+		opts.Weight)
+
 	if err := ctx.ipvs.UpdateDestPort(
-		rs.service.options.Address,
+		rs.service.options.host.String(),
 		rs.service.options.Port,
-		rs.options.Address,
+		rs.options.host.String(),
 		rs.options.Port,
 		rs.service.options.protocol,
 		int32(opts.Weight),
-		rs.options.method,
+		rs.options.methodId,
 	); err != nil {
 		log.Errorf("error while updating backend [%s/%s]", vsID, rsID)
 		return nil, ErrIpvsSyscallFailed
@@ -220,29 +236,23 @@ func (ctx *Context) UpdateBackend(vsID, rsID string, opts *BackendOptions) (*Bac
 
 // RemoveService deregisters a virtual service.
 func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
-	ctx.mtx.Lock()
-	defer ctx.mtx.Unlock()
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
 
 	vs, exists := ctx.services[vsID]
 
 	if !exists {
-		log.Errorf("unable to find virtual service [%s]", vsID)
 		return nil, ErrObjectNotFound
 	}
 
-	for rsID, backend := range ctx.backends {
-		if backend.service != vs {
-			continue
-		}
+	delete(ctx.services, vsID)
 
-		// Stop the pulse goroutine.
-		backend.monitor.Stop()
-
-		delete(ctx.backends, rsID)
-	}
+	log.Infof("removing virtual service [%s] from %s:%d", vsID,
+		vs.options.host,
+		vs.options.Port)
 
 	if err := ctx.ipvs.DelService(
-		vs.options.Address,
+		vs.options.host.String(),
 		vs.options.Port,
 		vs.options.protocol,
 	); err != nil {
@@ -250,30 +260,42 @@ func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 		return nil, ErrIpvsSyscallFailed
 	}
 
-	delete(ctx.services, vsID)
+	for rsID, backend := range ctx.backends {
+		if backend.service != vs {
+			continue
+		}
+
+		log.Infof("cleaning up now orphaned backend [%s/%s]", vsID, rsID)
+
+		// Stop the pulse goroutine.
+		backend.monitor.Stop()
+
+		delete(ctx.backends, rsID)
+	}
 
 	return vs.options, nil
 }
 
 // RemoveBackend deregisters a backend.
 func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
-	ctx.mtx.Lock()
-	defer ctx.mtx.Unlock()
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
 
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
-		log.Errorf("unable to find backend [%s/%s]", vsID, rsID)
 		return nil, ErrObjectNotFound
 	}
+
+	log.Infof("removing backend [%s/%s]", vsID, rsID)
 
 	// Stop the pulse goroutine.
 	rs.monitor.Stop()
 
 	if err := ctx.ipvs.DelDestPort(
-		rs.service.options.Address,
+		rs.service.options.host.String(),
 		rs.service.options.Port,
-		rs.options.Address,
+		rs.options.host.String(),
 		rs.options.Port,
 		rs.service.options.protocol,
 	); err != nil {
@@ -288,12 +310,12 @@ func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
 
 // GetService returns information about a virtual service.
 func (ctx *Context) GetService(vsID string) (*ServiceOptions, error) {
-	ctx.mtx.RLock()
+	ctx.mutex.RLock()
+	defer ctx.mutex.RUnlock()
+
 	vs, exists := ctx.services[vsID]
-	ctx.mtx.RUnlock()
 
 	if !exists {
-		log.Errorf("unable to find virtual service [%s]", vsID)
 		return nil, ErrObjectNotFound
 	}
 
@@ -308,12 +330,12 @@ type BackendInfo struct {
 
 // GetBackend returns information about a backend.
 func (ctx *Context) GetBackend(vsID, rsID string) (*BackendInfo, error) {
-	ctx.mtx.RLock()
+	ctx.mutex.RLock()
+	defer ctx.mutex.RUnlock()
+
 	rs, exists := ctx.backends[rsID]
-	ctx.mtx.RUnlock()
 
 	if !exists {
-		log.Errorf("unable to find backend [%s/%s]", vsID, rsID)
 		return nil, ErrObjectNotFound
 	}
 

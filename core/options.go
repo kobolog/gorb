@@ -22,6 +22,7 @@ package core
 
 import (
 	"errors"
+	"net"
 	"strings"
 	"syscall"
 
@@ -34,28 +35,45 @@ import (
 var (
 	ErrMissingEndpoint = errors.New("endpoint information is missing")
 	ErrUnknownMethod   = errors.New("specified forwarding method is unknown")
+	ErrUnknownProtocol = errors.New("specified protocol is unknown")
 )
 
 // ContextOptions configure Context behavior.
 type ContextOptions struct {
-	Flush bool
+	Flush     bool
+	Endpoints []net.IP
 }
 
 // ServiceOptions describe a virtual service.
 type ServiceOptions struct {
-	Address    string `json:"address"`
+	Host       string `json:"host"`
 	Port       uint16 `json:"port"`
 	Protocol   string `json:"protocol"`
 	Method     string `json:"method"`
 	Persistent bool   `json:"persistent"`
+
+	// Host string resolved to an IP, including DNS lookup.
+	host net.IP
 
 	// Protocol string converted to a protocol number.
 	protocol uint16
 }
 
 // Validate fills missing fields and validates virtual service configuration.
-func (o *ServiceOptions) Validate() error {
-	if len(o.Address) == 0 || o.Port == 0 {
+func (o *ServiceOptions) Validate(defaultHost net.IP) error {
+	if o.Port == 0 {
+		return ErrMissingEndpoint
+	}
+
+	if len(o.Host) != 0 {
+		if addr, err := net.ResolveIPAddr("ip", o.Host); err != nil {
+			return err
+		} else {
+			o.host = addr.IP
+		}
+	} else if defaultHost != nil {
+		o.host = defaultHost
+	} else {
 		return ErrMissingEndpoint
 	}
 
@@ -71,11 +89,12 @@ func (o *ServiceOptions) Validate() error {
 	case "udp":
 		o.protocol = syscall.IPPROTO_UDP
 	default:
-		o.protocol = syscall.IPPROTO_TCP
+		return ErrUnknownProtocol
 	}
 
 	if len(o.Method) == 0 {
-		o.Method = "RR"
+		// WRR since Pulse will dynamically reweight backends.
+		o.Method = "wrr"
 	}
 
 	return nil
@@ -83,20 +102,29 @@ func (o *ServiceOptions) Validate() error {
 
 // BackendOptions describe a virtual service backend.
 type BackendOptions struct {
-	Address string         `json:"address"`
-	Port    uint16         `json:"port"`
-	Weight  uint32         `json:"weight"`
-	Method  string         `json:"method"`
-	Pulse   *pulse.Options `json:"pulse"`
+	Host   string         `json:"host"`
+	Port   uint16         `json:"port"`
+	Weight uint32         `json:"weight"`
+	Method string         `json:"method"`
+	Pulse  *pulse.Options `json:"pulse"`
+
+	// Host string resolved to an IP, including DNS lookup.
+	host net.IP
 
 	// Forwarding method string converted to a forwarding method number.
-	method uint32
+	methodId uint32
 }
 
 // Validate fills missing fields and validates backend configuration.
 func (o *BackendOptions) Validate() error {
-	if len(o.Address) == 0 || o.Port == 0 {
+	if len(o.Host) == 0 || o.Port == 0 {
 		return ErrMissingEndpoint
+	}
+
+	if addr, err := net.ResolveIPAddr("ip", o.Host); err != nil {
+		return err
+	} else {
+		o.host = addr.IP
 	}
 
 	if o.Weight == 0 {
@@ -111,14 +139,15 @@ func (o *BackendOptions) Validate() error {
 
 	switch o.Method {
 	case "nat":
-		o.method = gnl2go.IPVS_MASQUERADING
+		o.methodId = gnl2go.IPVS_MASQUERADING
 	case "tunnel", "ipip":
-		o.method = gnl2go.IPVS_TUNNELING
+		o.methodId = gnl2go.IPVS_TUNNELING
 	default:
-		o.method = gnl2go.IPVS_MASQUERADING
+		return ErrUnknownMethod
 	}
 
 	if o.Pulse == nil {
+		// It doesn't make much sense to have a backend with no Pulse.
 		o.Pulse = &pulse.Options{}
 	}
 

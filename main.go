@@ -22,6 +22,7 @@ package main
 
 import (
 	"flag"
+	"net"
 	"net/http"
 	"os"
 
@@ -32,19 +33,45 @@ import (
 )
 
 var (
-	listen = flag.String("l", ":8080", "endpoint to listen for HTTP connection")
-	flush  = flag.Bool("f", false, "flush IPVS tables on start")
+	device = flag.String("i", "eth0", "default interface to attach services to")
+	flush  = flag.Bool("f", false, "flush IPVS pools on start")
+	listen = flag.String("l", ":4672", "endpoint to listen for HTTP connection")
 )
 
 func main() {
-	if os.Geteuid() != 0 {
-		log.Fatalf("this program has to be run with root priveleges")
-	}
-
-	// TODO(@kobolog): Look into replacing with getopt for long options.
+	// Called first to interrupt bootstrap and display usage if the user passed -h.
 	flag.Parse()
 
-	ctx, err := core.NewContext(core.ContextOptions{Flush: *flush})
+	log.Info("starting GORB v0.1-890b4cc0")
+
+	if os.Geteuid() != 0 {
+		log.Fatalf("this program has to be run with root priveleges to access IPVS")
+	}
+
+	var (
+		addrs     []net.Addr
+		endpoints []net.IP
+	)
+
+	if iface, err := net.InterfaceByName(*device); err != nil {
+		log.Fatalf("error while obtaining interface information: %s", err)
+	} else if addrs, err = iface.Addrs(); err != nil {
+		log.Fatalf("error while obtaining interface addresses: %s", err)
+	}
+
+	for _, addr := range addrs {
+		if ipAddr, ok := addr.(*net.IPNet); !ok {
+			log.Fatalf("interface address %s is not valid", ipAddr.String())
+		} else {
+			endpoints = append(endpoints, ipAddr.IP)
+		}
+
+		log.Infof("added default endpoint %s", endpoints[len(endpoints)-1].String())
+	}
+
+	ctx, err := core.NewContext(core.ContextOptions{
+		Flush:     *flush,
+		Endpoints: endpoints})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)

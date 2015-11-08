@@ -26,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func pulseSink(ctx *Context) {
+func (ctx *Context) notificationLoop() {
 	stash := map[pulse.ID]*BackendOptions{}
 
 	for status := range ctx.pulseCh {
@@ -43,12 +43,14 @@ func pulseSink(ctx *Context) {
 			}
 
 		case pulse.StatusDown:
+			opts := &BackendOptions{Weight: 0}
+
 			if _, exists := stash[status.Source]; exists {
 				continue
-			} else if opts, err := ctx.UpdateBackend(vsID, rsID, &BackendOptions{Weight: 0}); err != nil {
+			} else if o, err := ctx.UpdateBackend(vsID, rsID, opts); err != nil {
 				log.Errorf("error while stashing a backend: %s", err)
 			} else {
-				stash[status.Source] = opts
+				stash[status.Source] = o
 			}
 		}
 

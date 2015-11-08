@@ -35,7 +35,7 @@ type Driver interface {
 type Pulse struct {
 	driver   Driver
 	interval time.Duration
-	stopChan chan struct{}
+	stopCh   chan struct{}
 	metrics  *Metrics
 }
 
@@ -68,7 +68,7 @@ func (p *Pulse) Loop(id ID, pulseCh chan Status) {
 			// Recalculate metrics and statistics.
 			p.metrics.Update(status)
 
-		case <-p.stopChan:
+		case <-p.stopCh:
 			log.Infof("stopping pulse for %s", id)
 			return
 		}
@@ -79,7 +79,7 @@ func (p *Pulse) Loop(id ID, pulseCh chan Status) {
 
 // Stop stops the Pulse.
 func (p *Pulse) Stop() {
-	p.stopChan <- struct{}{}
+	p.stopCh <- struct{}{}
 }
 
 // Info returns Pulse metrics and statistics.
