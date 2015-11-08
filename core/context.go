@@ -48,6 +48,7 @@ type backend struct {
 	options *BackendOptions
 	service *service
 	monitor *pulse.Pulse
+	metrics pulse.Metrics
 }
 
 // Context abstacts away the underlying IPVS bindings implementation.
@@ -57,7 +58,7 @@ type Context struct {
 	services map[string]*service
 	backends map[string]*backend
 	mutex    sync.RWMutex
-	pulseCh  chan pulse.Status
+	pulseCh  chan pulse.Update
 }
 
 // NewContext creates a new Context and initializes IPVS.
@@ -68,11 +69,11 @@ func NewContext(options ContextOptions) (*Context, error) {
 		ipvs:     gnl2go.IpvsClient{},
 		services: make(map[string]*service),
 		backends: make(map[string]*backend),
-		pulseCh:  make(chan pulse.Status),
+		pulseCh:  make(chan pulse.Update),
 	}
 
 	if len(options.Endpoints) > 0 {
-		// TODO(@kobolog): bind virtual services on multiple endpoints.
+		// TODO(@kobolog): Bind virtual services on multiple endpoints.
 		ctx.endpoint = options.Endpoints[0]
 	}
 
@@ -197,21 +198,19 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 	return nil
 }
 
-// UpdateBackend updates the specified backend's weight - other options are ignored.
-func (ctx *Context) UpdateBackend(vsID, rsID string, opts *BackendOptions) (*BackendOptions, error) {
+// UpdateBackend updates the specified backend's weight.
+func (ctx *Context) UpdateBackend(vsID, rsID string, weight int32) (int32, error) {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
-		return nil, ErrObjectNotFound
+		return 0, ErrObjectNotFound
 	}
 
-	log.Infof("updating backend [%s/%s] with weight: %d",
-		vsID,
-		rsID,
-		opts.Weight)
+	log.Infof("updating backend [%s/%s] with weight: %d", vsID, rsID,
+		weight)
 
 	if err := ctx.ipvs.UpdateDestPort(
 		rs.service.options.host.String(),
@@ -219,19 +218,19 @@ func (ctx *Context) UpdateBackend(vsID, rsID string, opts *BackendOptions) (*Bac
 		rs.options.host.String(),
 		rs.options.Port,
 		rs.service.options.protocol,
-		int32(opts.Weight),
+		weight,
 		rs.options.methodId,
 	); err != nil {
 		log.Errorf("error while updating backend [%s/%s]", vsID, rsID)
-		return nil, ErrIpvsSyscallFailed
+		return 0, ErrIpvsSyscallFailed
 	}
 
-	var result BackendOptions
+	var result int32
 
-	// Save the old backend options and update the current backend weight.
-	result, rs.options.Weight = *rs.options, opts.Weight
+	// Save the old backend weight and update the current backend weight.
+	result, rs.options.Weight = rs.options.Weight, weight
 
-	return &result, nil
+	return result, nil
 }
 
 // RemoveService deregisters a virtual service.
@@ -325,7 +324,7 @@ func (ctx *Context) GetService(vsID string) (*ServiceOptions, error) {
 // BackendInfo contains information about backend options and pulse.
 type BackendInfo struct {
 	Options *BackendOptions `json:"options"`
-	Pulse   pulse.Metrics   `json:"pulse"`
+	Metrics pulse.Metrics   `json:"metrics"`
 }
 
 // GetBackend returns information about a backend.
@@ -339,5 +338,5 @@ func (ctx *Context) GetBackend(vsID, rsID string) (*BackendInfo, error) {
 		return nil, ErrObjectNotFound
 	}
 
-	return &BackendInfo{rs.options, rs.monitor.Info()}, nil
+	return &BackendInfo{rs.options, rs.metrics}, nil
 }

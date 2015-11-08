@@ -104,7 +104,7 @@ func (o *ServiceOptions) Validate(defaultHost net.IP) error {
 type BackendOptions struct {
 	Host   string         `json:"host"`
 	Port   uint16         `json:"port"`
-	Weight uint32         `json:"weight"`
+	Weight int32          `json:"weight"`
 	Method string         `json:"method"`
 	Pulse  *pulse.Options `json:"pulse"`
 
@@ -127,7 +127,7 @@ func (o *BackendOptions) Validate() error {
 		o.host = addr.IP
 	}
 
-	if o.Weight == 0 {
+	if o.Weight <= 0 {
 		o.Weight = 100
 	}
 

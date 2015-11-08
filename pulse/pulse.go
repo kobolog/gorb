@@ -22,6 +22,7 @@ package pulse
 
 import (
 	"time"
+	"math/rand"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -54,35 +55,31 @@ func New(address string, port uint16, opts *Options) *Pulse {
 }
 
 // Loop starts the Pulse.
-func (p *Pulse) Loop(id ID, pulseCh chan Status) {
+func (p *Pulse) Loop(id ID, pulseCh chan Update) {
 	log.Infof("starting pulse for %s", id)
+
+	// Randomize the first health-check to avoid thundering herd syndrome.
+	interval := time.Duration(rand.Intn(int(p.interval)))
 
 	for {
 		select {
-		case <-time.After(p.interval):
+		case <-time.After(interval):
 			status := Status{id, p.driver.Check()}
 
-			// Report the backend status to Context.
-			pulseCh <- status
-
-			// Recalculate metrics and statistics.
-			p.metrics.Update(status)
+			// Recalculate metrics and statistics and send them to Context.
+			pulseCh <- p.metrics.Update(status)
 
 		case <-p.stopCh:
 			log.Infof("stopping pulse for %s", id)
 			return
 		}
 
-		log.Debugf("%s pulse: %s", id, p.metrics.Status)
+		// TODO(@kobolog): Add exponential back-offs, thresholds.
+		interval = p.interval
 	}
 }
 
 // Stop stops the Pulse.
 func (p *Pulse) Stop() {
 	p.stopCh <- struct{}{}
-}
-
-// Info returns Pulse metrics and statistics.
-func (p *Pulse) Info() Metrics {
-	return *p.metrics
 }

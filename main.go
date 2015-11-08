@@ -42,7 +42,7 @@ func main() {
 	// Called first to interrupt bootstrap and display usage if the user passed -h.
 	flag.Parse()
 
-	log.Info("starting GORB v0.1-890b4cc0")
+	log.Info("starting GORB v0.1 - go routing and balancing")
 
 	if os.Geteuid() != 0 {
 		log.Fatalf("this program has to be run with root priveleges to access IPVS")

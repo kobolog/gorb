@@ -98,7 +98,7 @@ func (h backendUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 
 	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
 		writeError(w, err)
-	} else if _, err := h.ctx.UpdateBackend(vars["vsID"], vars["rsID"], &opts); err != nil {
+	} else if _, err := h.ctx.UpdateBackend(vars["vsID"], vars["rsID"], opts.Weight); err != nil {
 		writeError(w, err)
 	}
 }

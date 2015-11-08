@@ -27,33 +27,49 @@ import (
 )
 
 func (ctx *Context) notificationLoop() {
-	stash := map[pulse.ID]*BackendOptions{}
+	stash := make(map[pulse.ID]int32)
 
-	for status := range ctx.pulseCh {
-		vsID, rsID := status.Source.VsID, status.Source.RsID
+	for u := range ctx.pulseCh {
+		vsID, rsID := u.Source.VsID, u.Source.RsID
 
-		switch status.Result {
+		switch u.Metrics.Status {
 		case pulse.StatusUp:
-			if opts, exists := stash[status.Source]; !exists {
+			// Weight is gonna be stashed until the backend is recovered.
+			weight, exists := stash[u.Source]
+
+			if !exists {
 				continue
-			} else if _, err := ctx.UpdateBackend(vsID, rsID, opts); err != nil {
+			}
+
+			// Calculate a relative weight considering backend's health.
+			weight = int32(float64(weight) * u.Metrics.Health)
+
+			if _, err := ctx.UpdateBackend(vsID, rsID, weight); err != nil {
 				log.Errorf("error while unstashing a backend: %s", err)
-			} else {
-				delete(stash, status.Source)
+			} else if weight == stash[u.Source] {
+				// This means that the backend has completely recovered.
+				delete(stash, u.Source)
 			}
 
 		case pulse.StatusDown:
-			opts := &BackendOptions{Weight: 0}
-
-			if _, exists := stash[status.Source]; exists {
+			if _, exists := stash[u.Source]; exists {
 				continue
-			} else if o, err := ctx.UpdateBackend(vsID, rsID, opts); err != nil {
+			}
+
+			if weight, err := ctx.UpdateBackend(vsID, rsID, 0); err != nil {
 				log.Errorf("error while stashing a backend: %s", err)
 			} else {
-				stash[status.Source] = o
+				stash[u.Source] = weight
 			}
 		}
 
-		log.Warnf("backend %s status changed: %s", status.Source, status.Result)
+		ctx.mutex.Lock()
+
+		if ctx.backends[rsID].metrics.Status != u.Metrics.Status {
+			log.Warnf("backend %s status: %s", u.Source, u.Metrics.Status)
+			ctx.backends[rsID].metrics = u.Metrics
+		}
+
+		ctx.mutex.Unlock()
 	}
 }
