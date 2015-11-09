@@ -31,31 +31,34 @@ import (
 )
 
 func TestMustMarshall(t *testing.T) {
-	input := struct {
+	in := struct {
 		Answer int `json:"answer"`
 	}{
 		Answer: 42,
 	}
 
+	indent := JSONOptions{Indent: true}
+	normal := JSONOptions{}
+
 	rv := map[JSONOptions][]byte{}
 
-	normal := JSONOptions{}
-	indent := JSONOptions{Indent: true}
-
-	rv[normal], _ = json.Marshal(&input)
-	rv[indent], _ = json.MarshalIndent(&input, "", "\t")
+	rv[indent], _ = json.MarshalIndent(&in, "", "\t")
+	rv[normal], _ = json.Marshal(&in)
 
 	tests := []struct {
 		in   interface{}
 		opts JSONOptions
 		rv   []byte
 	}{
-		{in: input, opts: normal, rv: rv[normal]},
-		{in: input, opts: indent, rv: rv[indent]},
+		{in: in, opts: indent, rv: rv[indent]},
+		{in: in, opts: normal, rv: rv[normal]},
 	}
 
 	for _, test := range tests {
-		assert.Equal(t, test.rv, MustMarshal(test.in, test.opts))
+		rv := MustMarshal(test.in, test.opts)
+
+		assert.NotNil(t, rv)
+		assert.Equal(t, test.rv, rv)
 	}
 }
 
