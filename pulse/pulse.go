@@ -42,26 +42,29 @@ type Pulse struct {
 
 // New creates a new Pulse from the provided endpoint and options.
 func New(address string, port uint16, opts *Options) *Pulse {
-	var driver Driver
+	var d Driver
 
 	switch opts.Type {
-	case "none":
-		driver = newNopDriver()
 	case "tcp":
-		driver = newTCPDriver(address, port, opts)
+		d = newTCPDriver(address, port, opts)
 	case "http":
-		driver = newGETDriver(address, port, opts)
+		d = newGETDriver(address, port, opts)
+	case "none":
+		d = newNopDriver()
 	}
 
-	return &Pulse{driver, opts.interval, make(chan struct{}, 1), NewMetrics()}
+	return &Pulse{d, opts.interval, make(chan struct{}, 1), NewMetrics()}
 }
+
+// Use a separate random device to avoid interfering with other packages.
+var rd *rand.Rand
 
 // Loop starts the Pulse.
 func (p *Pulse) Loop(id ID, pulseCh chan Update) {
 	log.Infof("starting pulse for %s", id)
 
 	// Randomize the first health-check to avoid thundering herd syndrome.
-	interval := time.Duration(rand.Int63n(int64(p.interval)))
+	interval := time.Duration(rd.Int63n(int64(p.interval)))
 
 	for {
 		select {
@@ -84,4 +87,10 @@ func (p *Pulse) Loop(id ID, pulseCh chan Update) {
 // Stop stops the Pulse.
 func (p *Pulse) Stop() {
 	p.stopCh <- struct{}{}
+}
+
+func init() {
+	// NOTE(@kobolog): Docs say that UnixNano() is undefined if Unix time
+	// cannot be represented as int64. Not sure what it mean, so whatever.
+	rd = rand.New(rand.NewSource(time.Now().UnixNano()))
 }
