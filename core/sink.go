@@ -32,6 +32,17 @@ func (ctx *Context) notificationLoop() {
 	for u := range ctx.pulseCh {
 		vsID, rsID := u.Source.VsID, u.Source.RsID
 
+		ctx.mutex.Lock()
+
+		if ctx.backends[rsID].metrics.Status != u.Metrics.Status {
+			log.Warnf("backend %s status: %s", u.Source, u.Metrics.Status)
+		}
+
+		// This is a copy of metrics structure from Pulse.
+		ctx.backends[rsID].metrics = u.Metrics
+
+		ctx.mutex.Unlock()
+
 		switch u.Metrics.Status {
 		case pulse.StatusUp:
 			// Weight is gonna be stashed until the backend is recovered.
@@ -62,14 +73,5 @@ func (ctx *Context) notificationLoop() {
 				stash[u.Source] = weight
 			}
 		}
-
-		ctx.mutex.Lock()
-
-		if ctx.backends[rsID].metrics.Status != u.Metrics.Status {
-			log.Warnf("backend %s status: %s", u.Source, u.Metrics.Status)
-			ctx.backends[rsID].metrics = u.Metrics
-		}
-
-		ctx.mutex.Unlock()
 	}
 }
