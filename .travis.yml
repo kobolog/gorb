@@ -1,0 +1,9 @@
+language: go
+go:
+    - 1.5
+    - tip
+install:
+    - go get github.com/gorilla/mux
+    - go get github.com/sirupsen/logrus
+    - go get github.com/tehnerd/gnl2go
+
