@@ -53,6 +53,8 @@ func (o *Options) Validate() error {
 	o.Type = strings.ToLower(o.Type)
 
 	switch o.Type {
+	case "none":
+		// Nothing special for this Pulse type.
 	case "tcp":
 		// Nothing special for this Pulse type.
 	case "http":

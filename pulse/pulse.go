@@ -45,10 +45,12 @@ func New(address string, port uint16, opts *Options) *Pulse {
 	var driver Driver
 
 	switch opts.Type {
+	case "none":
+		driver = newNopDriver()
 	case "tcp":
 		driver = newTCPDriver(address, port, opts)
 	case "http":
-		driver = newHTTPDriver(address, port, opts)
+		driver = newGETDriver(address, port, opts)
 	}
 
 	return &Pulse{driver, opts.interval, make(chan struct{}, 1), NewMetrics()}
