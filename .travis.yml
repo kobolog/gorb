@@ -1,18 +1,18 @@
 language: go
 
 go:
-    - 1.5
-    - tip
-
-before_install:
-  - pip install --user codecov
+  - 1.5
+  - tip
 
 install:
-    - go get github.com/stretchr/testify/assert
-    - go get github.com/stretchr/testify/require
-    - go get github.com/gorilla/mux
-    - go get github.com/sirupsen/logrus
-    - go get github.com/tehnerd/gnl2go
+  - go get github.com/stretchr/testify/assert
+  - go get github.com/stretchr/testify/require
+  - go get github.com/gorilla/mux
+  - go get github.com/sirupsen/logrus
+  - go get github.com/tehnerd/gnl2go
+
+script:
+  - ./.travis/script.sh . core pulse util
 
 after_success:
-  - codecov
+  - bash <(curl -s https://codecov.io/bash)
