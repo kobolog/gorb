@@ -1,4 +1,4 @@
-## GORB [![Build Status](https://travis-ci.org/kobolog/gorb.svg?branch=master)](https://travis-ci.org/kobolog/gorb)
+## GORB [![Build Status](https://travis-ci.org/kobolog/gorb.svg?branch=master)](https://travis-ci.org/kobolog/gorb) [![codecov.io](https://codecov.io/github/kobolog/gorb/coverage.svg?branch=master)](https://codecov.io/github/kobolog/gorb?branch=master)
 **Go Routing and Balancing**
 
 This daemon is actually an IPVS frontend with REST API interface. You can use it to control local IPVS instance in the Kernel to dynamically register virtual services and backends. It also supports basic health checks (called Gorb Pulse):
