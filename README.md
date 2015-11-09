@@ -25,7 +25,7 @@ address automatically based on the configured default device:
     "host": "10.0.0.1",
     "port": 12345,
     "protocol": "tcp|udp",
-    "method": "rr|wrr|lc|wlc|lblc|lblcr|sh|dh|sed|nq",
+    "method": "rr|wrr|lc|wlc|lblc|lblcr|sh|dh|sed|nq|...",
     "persistent": true
 }
 ```
@@ -54,7 +54,7 @@ For more information and various configuration options description, consult [`ma
 
 - Add more options for Gorb Pulse: thresholds, HTTP verbs and expected responses, exponential back-offs and so on.
 - Support for IPVS statistics (requires GNL2GO support first).
-- Support for FWMARK virtual services.
+- Support for FWMARK & DR virtual services.
 - Add BGP host-route announces, so that multiple GORBs could expose a service on the same IP across the cluster.
 - Add some primitive UI to present the same action palette but in an user-friendly fashion.
 - Optional: add dynamic DNS support, so that GORBs could register new service names on some specified subdomain.
