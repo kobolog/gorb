@@ -1,4 +1,4 @@
-# GORB ![Travis-CI](https://travis-ci.org/kobolog/gorb.svg?branch=master)
+## GORB ![Travis-CI](https://travis-ci.org/kobolog/gorb.svg?branch=master)
 **Go Routing and Balancing**
 
 This daemon is actually an IPVS frontend with REST API interface. You can use it to control local IPVS instance in the Kernel to dynamically register virtual services and backends. It also supports basic health checks (called Gorb Pulse):
@@ -8,7 +8,7 @@ This daemon is actually an IPVS frontend with REST API interface. You can use it
 
 Backends which fail to pass the health check will have their weights set to zero to inhibit any traffic from being routed their direction. Other than that, it can't do anything fancy yet.
 
-# Configuration
+## Configuration
 
 There's not much of a configuration required. The only few options can be specified on the command line:
 
@@ -16,7 +16,7 @@ There's not much of a configuration required. The only few options can be specif
 
 By default, GORB will listen on `:4672`, bind services on `eth0` and keep your IPVS pool intact on launch.
 
-# REST API
+## REST API
 
 - `PUT /service/<service>` creates a new virtual service with provided options. If `host` is omitted, GORB will pick an
 address automatically based on the configured default device:
@@ -50,7 +50,7 @@ address automatically based on the configured default device:
 
 For more information and various configuration options description, consult [`man 8 ipvsadm`](http://linux.die.net/man/8/ipvsadm).
 
-# TODO
+## TODO
 
 - Add more options for Gorb Pulse: thresholds, HTTP verbs and expected responses, exponential back-offs and so on.
 - Support for IPVS statistics (requires GNL2GO support first).
