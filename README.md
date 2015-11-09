@@ -1,16 +1,16 @@
 ## GORB [![Build Status](https://travis-ci.org/kobolog/gorb.svg?branch=master)](https://travis-ci.org/kobolog/gorb) [![codecov.io](https://codecov.io/github/kobolog/gorb/coverage.svg?branch=master)](https://codecov.io/github/kobolog/gorb?branch=master)
 **Go Routing and Balancing**
 
-This daemon is actually an IPVS frontend with REST API interface. You can use it to control local IPVS instance in the Kernel to dynamically register virtual services and backends. It also supports basic health checks (called Gorb Pulse):
+This daemon is an IPVS frontend with a REST API interface. You can use it to control local IPVS instance in the Kernel to dynamically register virtual services and backends. It also supports basic TCP and HTTP health checks (called Gorb Pulse).
 
-- **TCP**: tries to establish a TCP connection to the backend's address and port.
-- **HTTP**: tries to fetch a specified location from backend's address and port.
+- **TCP**: tries to establish a TCP connection to the backend's host and port.
+- **HTTP**: tries to fetch a specified location from backend's host and port.
 
-Backends which fail to pass the health check will have their weights set to zero to inhibit any traffic from being routed their direction. Other than that, it can't do anything fancy yet.
+Backends which fail to pass the health check will have weights set to zero to inhibit any traffic from being routed into their direction. When a backend comes back online, GORB won't immediately set its weight to the previous value, but instead gradually restore it based on backend's accumulated health statistics.
 
 ## Configuration
 
-There's not much of a configuration required. The only few options can be specified on the command line:
+There's not much of a configuration required - only a handlful of options can be specified on the command line:
 
     gorb [-l <listen-address>] [-d <device>] [-f flush-pools] | -h
 
@@ -40,7 +40,7 @@ address automatically based on the configured default device:
         "interval": "5s",
         "path": "/health (ignored for tcp pulse)"
     },
-    "weight": 128
+    "weight": 100
 }
 ```
 - `DELETE /service/<service>` removes the specified virtual service and all its backends.
@@ -57,4 +57,4 @@ For more information and various configuration options description, consult [`ma
 - Support for FWMARK & DR virtual services.
 - Add BGP host-route announces, so that multiple GORBs could expose a service on the same IP across the cluster.
 - Add some primitive UI to present the same action palette but in an user-friendly fashion.
-- Optional: add dynamic DNS support, so that GORBs could register new service names on some specified subdomain.
+- Add dynamic DNS registration support, so that GORBs could register new service names on some provided subdomain.

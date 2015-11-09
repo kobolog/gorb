@@ -56,6 +56,12 @@ func New(address string, port uint16, opts *Options) *Pulse {
 	return &Pulse{d, opts.interval, make(chan struct{}, 1), NewMetrics()}
 }
 
+// Update is a Pulse notification message.
+type Update struct {
+	Source  ID
+	Metrics Metrics
+}
+
 // Use a separate random device to avoid interfering with other packages.
 var rd *rand.Rand
 
@@ -69,10 +75,8 @@ func (p *Pulse) Loop(id ID, pulseCh chan Update) {
 	for {
 		select {
 		case <-time.After(interval):
-			status := Status{id, p.driver.Check()}
-
 			// Recalculate metrics and statistics and send them to Context.
-			pulseCh <- p.metrics.Update(status)
+			pulseCh <- Update{id, p.metrics.Update(p.driver.Check())}
 
 		case <-p.stopCh:
 			log.Infof("stopping pulse for %s", id)

@@ -53,9 +53,3 @@ type ID struct {
 func (id ID) String() string {
 	return fmt.Sprintf("[%s/%s]", id.VsID, id.RsID)
 }
-
-// Status is a Pulse notification.
-type Status struct {
-	Source ID
-	Result StatusType
-}

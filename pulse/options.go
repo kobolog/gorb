@@ -47,7 +47,12 @@ type Options struct {
 // Validate fills missing fields and validates Pulse configuration.
 func (o *Options) Validate() error {
 	if len(o.Type) == 0 {
-		o.Type, o.Interval = "tcp", "1m"
+		// TCP is a safe guess: the majority of services are TCP-based.
+		o.Type = "tcp"
+	}
+
+	if len(o.Interval) == 0 {
+		o.Interval = "1m"
 	}
 
 	o.Type = strings.ToLower(o.Type)

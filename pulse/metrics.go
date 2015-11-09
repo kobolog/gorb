@@ -40,17 +40,11 @@ func NewMetrics() *Metrics {
 	return &Metrics{Status: StatusUp, Health: 1, Uptime: 0, lastTs: time.Now()}
 }
 
-// Update is a Pulse notification message.
-type Update struct {
-	Source  ID
-	Metrics Metrics
-}
-
 // Update updates metrics based on Pulse status message.
-func (m *Metrics) Update(status Status) Update {
-	m.Status = status.Result
+func (m *Metrics) Update(status StatusType) Metrics {
+	m.Status = status
 	m.Health = 0
-	m.record = append(m.record, status.Result)
+	m.record = append(m.record, status)
 
 	if len(m.record) > 100 {
 		m.record = m.record[1:]
@@ -68,5 +62,5 @@ func (m *Metrics) Update(status Status) Update {
 		m.Uptime, m.lastTs = m.Uptime+ts.Sub(m.lastTs)/time.Second, ts
 	}
 
-	return Update{status.Source, *m}
+	return *m
 }
