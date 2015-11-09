@@ -59,7 +59,7 @@ func (p *Pulse) Loop(id ID, pulseCh chan Update) {
 	log.Infof("starting pulse for %s", id)
 
 	// Randomize the first health-check to avoid thundering herd syndrome.
-	interval := time.Duration(rand.Intn(int(p.interval)))
+	interval := time.Duration(rand.Int63n(int64(p.interval)))
 
 	for {
 		select {
