@@ -37,13 +37,13 @@ func TestMustMarshall(t *testing.T) {
 		Answer: 42,
 	}
 
-   rv := map[JSONOptions][]byte{}
+	rv := map[JSONOptions][]byte{}
 
-   normal := JSONOptions{}
-   indent := JSONOptions{Indent: true}
+	normal := JSONOptions{}
+	indent := JSONOptions{Indent: true}
 
-   rv[normal], _ = json.Marshal(&input)
-   rv[indent], _ = json.MarshalIndent(&input, "", "\t")
+	rv[normal], _ = json.Marshal(&input)
+	rv[indent], _ = json.MarshalIndent(&input, "", "\t")
 
 	tests := []struct {
 		in   interface{}
@@ -60,10 +60,10 @@ func TestMustMarshall(t *testing.T) {
 }
 
 func TestMustMarshalPanic(t *testing.T) {
-   assert.Panics(t, func() {
-      // Map key type is not string.
-      MustMarshal(map[int]int{}, JSONOptions{})
-   })
+	assert.Panics(t, func() {
+		// Map key type is not string.
+		MustMarshal(map[int]int{}, JSONOptions{})
+	})
 }
 
 func TestAddrFamily(t *testing.T) {
@@ -72,8 +72,8 @@ func TestAddrFamily(t *testing.T) {
 		rv int
 	}{
 		{in: net.ParseIP("10.0.0.1"), rv: IPv4},
-      {in: net.ParseIP("fd11:bcb5:61df::1"), rv: IPv6},
-      {in: net.ParseIP("10.0.0.1").To4(), rv: IPv4},
+		{in: net.ParseIP("fd11:bcb5:61df::1"), rv: IPv6},
+		{in: net.ParseIP("10.0.0.1").To4(), rv: IPv4},
 	}
 
 	for _, test := range tests {
@@ -104,11 +104,11 @@ func TestParseIntervalErrors(t *testing.T) {
 		in  string
 		err error
 	}{
-      // Missing unit.
+		// Missing unit.
 		{in: "600", err: errInvalidIntervalFormat},
-      // Missing number.
+		// Missing number.
 		{in: "foos", err: errInvalidIntervalFormat},
-      // Unknown unit.
+		// Unknown unit.
 		{in: "24z", err: errInvalidIntervalFormat},
 	}
 
