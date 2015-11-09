@@ -66,10 +66,10 @@ func (o *ServiceOptions) Validate(defaultHost net.IP) error {
 	}
 
 	if len(o.Host) != 0 {
-		if addr, err := net.ResolveIPAddr("ip", o.Host); err != nil {
-			return err
-		} else {
+		if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
 			o.host = addr.IP
+		} else {
+			return err
 		}
 	} else if defaultHost != nil {
 		o.host = defaultHost
@@ -112,7 +112,7 @@ type BackendOptions struct {
 	host net.IP
 
 	// Forwarding method string converted to a forwarding method number.
-	methodId uint32
+	methodID uint32
 }
 
 // Validate fills missing fields and validates backend configuration.
@@ -121,10 +121,10 @@ func (o *BackendOptions) Validate() error {
 		return ErrMissingEndpoint
 	}
 
-	if addr, err := net.ResolveIPAddr("ip", o.Host); err != nil {
-		return err
-	} else {
+	if addr, err := net.ResolveIPAddr("ip", o.Host); err == nil {
 		o.host = addr.IP
+	} else {
+		return err
 	}
 
 	if o.Weight <= 0 {
@@ -139,9 +139,9 @@ func (o *BackendOptions) Validate() error {
 
 	switch o.Method {
 	case "nat":
-		o.methodId = gnl2go.IPVS_MASQUERADING
+		o.methodID = gnl2go.IPVS_MASQUERADING
 	case "tunnel", "ipip":
-		o.methodId = gnl2go.IPVS_TUNNELING
+		o.methodID = gnl2go.IPVS_TUNNELING
 	default:
 		return ErrUnknownMethod
 	}

@@ -40,6 +40,7 @@ func NewMetrics() *Metrics {
 	return &Metrics{Status: StatusUp, Health: 1, Uptime: 0, lastTs: time.Now()}
 }
 
+// Update is a Pulse notification message.
 type Update struct {
 	Source  ID
 	Metrics Metrics

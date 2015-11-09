@@ -179,7 +179,7 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 		opts.Port,
 		vs.options.protocol,
 		int32(opts.Weight),
-		opts.methodId,
+		opts.methodID,
 	); err != nil {
 		log.Errorf("error while creating backend: %s", err)
 		return ErrIpvsSyscallFailed
@@ -219,7 +219,7 @@ func (ctx *Context) UpdateBackend(vsID, rsID string, weight int32) (int32, error
 		rs.options.Port,
 		rs.service.options.protocol,
 		weight,
-		rs.options.methodId,
+		rs.options.methodID,
 	); err != nil {
 		log.Errorf("error while updating backend [%s/%s]", vsID, rsID)
 		return 0, ErrIpvsSyscallFailed
@@ -307,8 +307,16 @@ func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
 	return rs.options, nil
 }
 
+// ServiceInfo contains information about virtual service options,
+// its backends and overall virtual service health.
+type ServiceInfo struct {
+	Options  *ServiceOptions `json:"options"`
+	Health   float64         `json:"health"`
+	Backends []string        `json:"backends"`
+}
+
 // GetService returns information about a virtual service.
-func (ctx *Context) GetService(vsID string) (*ServiceOptions, error) {
+func (ctx *Context) GetService(vsID string) (*ServiceInfo, error) {
 	ctx.mutex.RLock()
 	defer ctx.mutex.RUnlock()
 
@@ -318,7 +326,26 @@ func (ctx *Context) GetService(vsID string) (*ServiceOptions, error) {
 		return nil, ErrObjectNotFound
 	}
 
-	return vs.options, nil
+	result := ServiceInfo{Options: vs.options}
+
+	// This is O(n), can be optimized with reverse backend map.
+	for rsID, backend := range ctx.backends {
+		if backend.service != vs {
+			continue
+		}
+
+		result.Backends = append(result.Backends, rsID)
+		result.Health += backend.metrics.Health
+	}
+
+	if len(result.Backends) == 0 {
+		// Service without backends is healthy, albeit useless.
+		result.Health = 1.0
+	} else {
+		result.Health /= float64(len(result.Backends))
+	}
+
+	return &result, nil
 }
 
 // BackendInfo contains information about backend options and pulse.

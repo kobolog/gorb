@@ -21,8 +21,8 @@
 package pulse
 
 import (
-	"time"
 	"math/rand"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
