@@ -1,7 +1,12 @@
 language: go
+
 go:
     - 1.5
     - tip
+
+before_install:
+  - pip install --user codecov
+
 install:
     - go get github.com/stretchr/testify/assert
     - go get github.com/stretchr/testify/require
@@ -9,4 +14,5 @@ install:
     - go get github.com/sirupsen/logrus
     - go get github.com/tehnerd/gnl2go
 
-
+after_success:
+  - codecov
