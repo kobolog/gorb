@@ -21,12 +21,12 @@
 package pulse
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +38,7 @@ func TestGenericOptions(t *testing.T) {
 		err  error
 	)
 
-	// Automatic defaults – must fill only in omitted fields.
+	// Automatic defaults – must fill in only omitted fields.
 	tests := []struct {
 		in *Options
 		rv *Options
@@ -48,8 +48,8 @@ func TestGenericOptions(t *testing.T) {
 			&Options{Type: "tcp", Interval: "1m"},
 		},
 		{
-			&Options{Type: "http", Path: "/hp"},
-			&Options{Type: "http", Interval: "1m", Path: "/hp"},
+			&Options{Type: "http", Path: "/"},
+			&Options{Type: "http", Interval: "1m", Path: "/"},
 		},
 		{
 			&Options{Interval: "5s"},
@@ -98,6 +98,22 @@ func TestGETDriverOptions(t *testing.T) {
 	require.Equal(t, ErrMissingHTTPPulsePath, err)
 }
 
+func TestMetrics(t *testing.T) {
+	m := NewMetrics()
+
+	// Record rollover.
+	for i := 0; i <= 100; i++ {
+		m.Update(StatusUp)
+	}
+
+	assert.Equal(t, 100, len(m.record))
+
+	// Uptime switch.
+	m.Update(StatusDown)
+
+	assert.Equal(t, time.Duration(0), m.Uptime)
+}
+
 func TestPulseChannel(t *testing.T) {
 	opts := &Options{Type: "none", Interval: "1s"}
 	opts.Validate()
@@ -111,6 +127,7 @@ func TestPulseChannel(t *testing.T) {
 	defer close(pulseChan)
 
 	go p.Loop(id, pulseChan)
+	defer p.Stop()
 
 	update := <-pulseChan
 
@@ -127,14 +144,17 @@ func TestPulseStop(t *testing.T) {
 	opts.Validate()
 
 	var (
-		p  = New("none", 80, opts)
-		wg sync.WaitGroup
+		p         = New("none", 80, opts)
+		pulseChan = make(chan Update)
+		wg        sync.WaitGroup
 	)
+
+	defer close(pulseChan)
 
 	wg.Add(1)
 
 	go func() {
-		p.Loop(ID{"VsID", "rsID"}, make(chan Update))
+		p.Loop(ID{"VsID", "rsID"}, pulseChan)
 		wg.Done()
 	}()
 
@@ -158,35 +178,63 @@ func TestTCPDriver(t *testing.T) {
 	go func() {
 		cn, err := ln.Accept()
 
-		// TODO(@kobolog): Not sure whether it's usable in goroutines.
+		// TODO(@kobolog): Not sure if it's usable in goroutines.
 		require.NoError(t, err)
 
 		cn.Close()
 		ln.Close()
 	}()
 
-	port := ln.Addr().(*net.TCPAddr).Port
-	driver := newTCPDriver("localhost", uint16(port), &Options{})
+	port := uint16(ln.Addr().(*net.TCPAddr).Port)
+	p := New("localhost", port, &Options{Type: "tcp"})
 
-	assert.Equal(t, StatusUp, driver.Check())
+	assert.Equal(t, StatusUp, p.driver.Check())
 
 	// This will fail since listener accepted only one connection.
-	assert.Equal(t, StatusDown, driver.Check())
+	assert.Equal(t, StatusDown, p.driver.Check())
 }
 
 func TestGETDriver(t *testing.T) {
-	server := httptest.NewServer(
-      http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "ok!")
-	}))
+	tests := []struct {
+		fn func(w http.ResponseWriter, r *http.Request)
+		rv StatusType
+	}{
+		{
+			func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+			},
+			StatusDown,
+		},
+		{
+			func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/url", http.StatusFound)
+			},
+			StatusDown,
+		},
+		{
+			func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			},
+			StatusUp,
+		},
+	}
 
-	port := server.Listener.Addr().(*net.TCPAddr).Port
-	driver := newGETDriver("localhost", uint16(port), &Options{Path: "/"})
+	for _, test := range tests {
+		ts := httptest.NewServer(http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				test.fn(w, r)
+			}))
 
-	assert.Equal(t, StatusUp, driver.Check())
+		port := uint16(ts.Listener.Addr().(*net.TCPAddr).Port)
+		p := New("localhost", port, &Options{Type: "http", Path: "/"})
 
-	// Kill the test HTTP server to verify Pulse failure.
-	server.Close()
+		assert.Equal(t, test.rv, p.driver.Check())
+	}
+}
 
-	assert.Equal(t, StatusDown, driver.Check())
+func TestGETDriverNoConnection(t *testing.T) {
+	p := New("no-such-host", 80, &Options{Type: "http", Path: "/"})
+
+	// Connection failure.
+	assert.Equal(t, StatusDown, p.driver.Check())
 }

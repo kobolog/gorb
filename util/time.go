@@ -48,14 +48,10 @@ var (
 // ParseInterval parses an interval string and returns the corresponding duration.
 func ParseInterval(s string) (time.Duration, error) {
 	if m := reInterval.FindStringSubmatch(strings.TrimSpace(s)); len(m) != 0 {
-		amount, err := strconv.ParseInt(m[1], 10, 32)
+		value, _ := strconv.ParseInt(m[1], 10, 32)
+		duration := intervals[strings.ToLower(m[2])]
 
-		if err != nil {
-			return 0, err
-		}
-
-		interval := intervals[strings.ToLower(m[2])]
-		return interval * time.Duration(amount), nil
+		return duration * time.Duration(value), nil
 	}
 
 	return 0, errInvalidIntervalFormat
