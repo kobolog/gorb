@@ -84,6 +84,26 @@ func TestAddrFamily(t *testing.T) {
 	}
 }
 
+func TestInterfaceIPs(t *testing.T) {
+	ifs, err := net.Interfaces()
+
+	require.NoError(t, err)
+	require.NotEmpty(t, ifs)
+
+	ips, err := InterfaceIPs(ifs[0].Name)
+
+	require.NoError(t, err)
+	assert.NotEmpty(t, ips)
+}
+
+func TestInterfaceIPsErrors(t *testing.T) {
+	// Invalid interface name.
+	ips, err := InterfaceIPs("no-such-interface")
+
+	require.Error(t, err)
+	assert.Empty(t, ips)
+}
+
 func TestParseInterval(t *testing.T) {
 	tests := []struct {
 		in string

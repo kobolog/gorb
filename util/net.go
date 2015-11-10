@@ -53,3 +53,24 @@ func AddrFamily(ip net.IP) int {
 
 	return IPv6
 }
+
+// InterfaceIPs returns a slice of interface IP addresses.
+func InterfaceIPs(device string) (ips []net.IP, _ error) {
+	var networks []net.Addr
+
+	if iface, err := net.InterfaceByName(device); err != nil {
+		return nil, err
+	} else if networks, err = iface.Addrs(); err != nil {
+		return nil, err
+	}
+
+	for _, network := range networks {
+		if ipNet, castable := network.(*net.IPNet); castable {
+			ips = append(ips, ipNet.IP)
+		}
+	}
+
+	// Note that on non-IP interfaces it will be an empty slice
+	// and no error indicator. Maybe that's not super-perfect.
+	return ips, nil
+}

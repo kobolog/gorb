@@ -12,7 +12,7 @@ install:
   - go get github.com/tehnerd/gnl2go
 
 script:
-  - ./.travis/script.sh . core pulse util
+  - ./.travis/script.sh . core pulse util gorb-docker-link
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

@@ -22,18 +22,19 @@ package main
 
 import (
 	"flag"
-	"net"
 	"net/http"
 	"os"
 
 	"github.com/kobolog/gorb/core"
+	"github.com/kobolog/gorb/util"
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	device = flag.String("i", "eth0", "default interface to attach services to")
+	debug  = flag.Bool("v", false, "verbose output")
+	device = flag.String("i", "eth0", "default interface to bind services on")
 	flush  = flag.Bool("f", false, "flush IPVS pools on start")
 	listen = flag.String("l", ":4672", "endpoint to listen for HTTP connection")
 )
@@ -42,36 +43,24 @@ func main() {
 	// Called first to interrupt bootstrap and display usage if the user passed -h.
 	flag.Parse()
 
-	log.Info("starting GORB v0.1 - go routing and balancing")
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	log.Info("starting GORB Daemon v0.1")
 
 	if os.Geteuid() != 0 {
 		log.Fatalf("this program has to be run with root priveleges to access IPVS")
 	}
 
-	var (
-		addrs     []net.Addr
-		endpoints []net.IP
-	)
-
-	if iface, err := net.InterfaceByName(*device); err != nil {
-		log.Fatalf("error while obtaining interface information: %s", err)
-	} else if addrs, err = iface.Addrs(); err != nil {
+	hostIPs, err := util.InterfaceIPs(*device)
+	if err != nil {
 		log.Fatalf("error while obtaining interface addresses: %s", err)
-	}
-
-	for _, addr := range addrs {
-		if ipAddr, ok := addr.(*net.IPNet); !ok {
-			log.Fatalf("interface address %s is not valid", ipAddr.String())
-		} else {
-			endpoints = append(endpoints, ipAddr.IP)
-		}
-
-		log.Infof("added default endpoint %s", endpoints[len(endpoints)-1].String())
 	}
 
 	ctx, err := core.NewContext(core.ContextOptions{
 		Flush:     *flush,
-		Endpoints: endpoints})
+		Endpoints: hostIPs})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)
