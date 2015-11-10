@@ -41,19 +41,25 @@ type Pulse struct {
 }
 
 // New creates a new Pulse from the provided endpoint and options.
-func New(host string, port uint16, opts *Options) *Pulse {
-	var d Driver
+func New(host string, port uint16, opts *Options) (*Pulse, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, err
+	}
+
+	var driver Driver
 
 	switch opts.Type {
 	case "tcp":
-		d = newTCPDriver(host, port, opts)
+		driver = newTCPDriver(host, port, opts)
 	case "http":
-		d = newGETDriver(host, port, opts)
+		driver = newGETDriver(host, port, opts)
 	case "none":
-		d = newNopDriver()
+		driver = newNopDriver()
 	}
 
-	return &Pulse{d, opts.interval, make(chan struct{}, 1), NewMetrics()}
+	stopCh := make(chan struct{}, 1)
+
+	return &Pulse{driver, opts.interval, stopCh, NewMetrics()}, nil
 }
 
 // Update is a Pulse notification message.

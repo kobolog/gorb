@@ -115,21 +115,20 @@ func TestMetrics(t *testing.T) {
 }
 
 func TestPulseChannel(t *testing.T) {
-	opts := &Options{Type: "none", Interval: "1s"}
-	opts.Validate()
-
 	var (
-		p         = New("none", 80, opts)
-		pulseChan = make(chan Update)
-		id        = ID{"VsID", "rsID"}
+		pulseCh = make(chan Update)
+		id      = ID{"VsID", "rsID"}
 	)
 
-	defer close(pulseChan)
+	defer close(pulseCh)
 
-	go p.Loop(id, pulseChan)
-	defer p.Stop()
+	bp, err := New("", 0, &Options{Type: "none", Interval: "1s"})
+	require.NoError(t, err)
 
-	update := <-pulseChan
+	go bp.Loop(id, pulseCh)
+	defer bp.Stop()
+
+	update := <-pulseCh
 
 	assert.Equal(t, id, update.Source)
 	assert.Equal(t, StatusUp, update.Metrics.Status)
@@ -140,27 +139,24 @@ func TestPulseChannel(t *testing.T) {
 }
 
 func TestPulseStop(t *testing.T) {
-	opts := &Options{Type: "none", Interval: "1s"}
-	opts.Validate()
-
 	var (
-		p         = New("none", 80, opts)
-		pulseChan = make(chan Update)
-		wg        sync.WaitGroup
+		pulseCh = make(chan Update)
+		wg      sync.WaitGroup
 	)
 
-	defer close(pulseChan)
+	defer close(pulseCh)
+
+	bp, err := New("", 0, &Options{Type: "none", Interval: "1s"})
+	require.NoError(t, err)
 
 	wg.Add(1)
-
 	go func() {
-		p.Loop(ID{"VsID", "rsID"}, pulseChan)
+		bp.Loop(ID{"VsID", "rsID"}, pulseCh)
 		wg.Done()
 	}()
 
-	p.Stop()
-
 	// In theory, this can hang the test forever.
+	bp.Stop()
 	wg.Wait()
 }
 
@@ -185,13 +181,15 @@ func TestTCPDriver(t *testing.T) {
 		ln.Close()
 	}()
 
-	port := uint16(ln.Addr().(*net.TCPAddr).Port)
-	p := New("localhost", port, &Options{Type: "tcp"})
+	tcpAddr := ln.Addr().(*net.TCPAddr)
+	bp, err := New("localhost", uint16(tcpAddr.Port), &Options{Type: "tcp"})
+	require.NoError(t, err)
 
-	assert.Equal(t, StatusUp, p.driver.Check())
+	// Normal connection attempt.
+	assert.Equal(t, StatusUp, bp.driver.Check())
 
-	// This will fail since listener accepted only one connection.
-	assert.Equal(t, StatusDown, p.driver.Check())
+	// Connection failure.
+	assert.Equal(t, StatusDown, bp.driver.Check())
 }
 
 func TestGETDriver(t *testing.T) {
@@ -200,18 +198,21 @@ func TestGETDriver(t *testing.T) {
 		rv StatusType
 	}{
 		{
+			// Non-200 response code.
 			func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
 			StatusDown,
 		},
 		{
+			// Redirect.
 			func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/url", http.StatusFound)
 			},
 			StatusDown,
 		},
 		{
+			// Normal response.
 			func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			},
@@ -225,16 +226,18 @@ func TestGETDriver(t *testing.T) {
 				test.fn(w, r)
 			}))
 
-		port := uint16(ts.Listener.Addr().(*net.TCPAddr).Port)
-		p := New("localhost", port, &Options{Type: "http", Path: "/"})
+		tcpAddr := ts.Listener.Addr().(*net.TCPAddr)
+		bp, err := New("localhost", uint16(tcpAddr.Port), &Options{Type: "http", Path: "/"})
+		require.NoError(t, err)
 
-		assert.Equal(t, test.rv, p.driver.Check())
+		assert.Equal(t, test.rv, bp.driver.Check())
 	}
 }
 
 func TestGETDriverNoConnection(t *testing.T) {
-	p := New("no-such-host", 80, &Options{Type: "http", Path: "/"})
+	bp, err := New("no-such-host", 80, &Options{Type: "http", Path: "/"})
+	require.NoError(t, err)
 
 	// Connection failure.
-	assert.Equal(t, StatusDown, p.driver.Check())
+	assert.Equal(t, StatusDown, bp.driver.Check())
 }

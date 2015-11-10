@@ -151,5 +151,5 @@ func (o *BackendOptions) Validate() error {
 		o.Pulse = &pulse.Options{}
 	}
 
-	return o.Pulse.Validate()
+	return nil
 }

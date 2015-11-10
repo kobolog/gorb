@@ -149,6 +149,11 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 		return err
 	}
 
+	p, err := pulse.New(opts.host.String(), opts.Port, opts.Pulse)
+	if err != nil {
+		return err
+	}
+
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 
@@ -185,15 +190,10 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 		return ErrIpvsSyscallFailed
 	}
 
-	backend := &backend{options: opts, service: vs, monitor: pulse.New(
-		opts.host.String(),
-		opts.Port,
-		opts.Pulse)}
+	ctx.backends[rsID] = &backend{options: opts, service: vs, monitor: p}
 
-	ctx.backends[rsID] = backend
-
-	// Fire off the configured pulse goroutine and attach it to the Context.
-	go backend.monitor.Loop(pulse.ID{vsID, rsID}, ctx.pulseCh)
+	// Fire off the configured pulse goroutine, attach it to the Context.
+	go ctx.backends[rsID].monitor.Loop(pulse.ID{vsID, rsID}, ctx.pulseCh)
 
 	return nil
 }
