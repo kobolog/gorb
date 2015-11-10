@@ -43,10 +43,6 @@ func newGETDriver(host string, port uint16, opts *Options) Driver {
 		req *http.Request,
 		via []*http.Request,
 	) error {
-		if len(via) == 0 {
-			return nil
-		}
-
 		return errors.New("redirects are not supported for pulse requests")
 	}}
 
