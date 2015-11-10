@@ -41,14 +41,14 @@ type Pulse struct {
 }
 
 // New creates a new Pulse from the provided endpoint and options.
-func New(address string, port uint16, opts *Options) *Pulse {
+func New(host string, port uint16, opts *Options) *Pulse {
 	var d Driver
 
 	switch opts.Type {
 	case "tcp":
-		d = newTCPDriver(address, port, opts)
+		d = newTCPDriver(host, port, opts)
 	case "http":
-		d = newGETDriver(address, port, opts)
+		d = newGETDriver(host, port, opts)
 	case "none":
 		d = newNopDriver()
 	}

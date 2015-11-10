@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -37,7 +38,7 @@ type httpPulse struct {
 	client http.Client
 }
 
-func newGETDriver(address string, port uint16, opts *Options) Driver {
+func newGETDriver(host string, port uint16, opts *Options) Driver {
 	httpClient := http.Client{Timeout: 5 * time.Second, CheckRedirect: func(
 		req *http.Request,
 		via []*http.Request,
@@ -49,11 +50,13 @@ func newGETDriver(address string, port uint16, opts *Options) Driver {
 		return errors.New("redirects are not supported for pulse requests")
 	}}
 
-	return &httpPulse{
-		method: "GET",
-		url:    fmt.Sprintf("http://%s:%d/%s", address, port, opts.Path),
-		client: httpClient,
+	url := url.URL{
+		Scheme: "http",
+		Host:   fmt.Sprintf("%s:%d", host, port),
+		Path:   opts.Path,
 	}
+
+	return &httpPulse{method: "GET", url: url.String(), client: httpClient}
 }
 
 func (p *httpPulse) Check() StatusType {
