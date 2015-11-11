@@ -98,7 +98,7 @@ func TestInterfaceIPs(t *testing.T) {
 
 func TestInterfaceIPsErrors(t *testing.T) {
 	// Invalid interface name.
-	ips, err := InterfaceIPs("no-such-interface")
+	ips, err := InterfaceIPs("unknown-interface")
 
 	require.Error(t, err)
 	assert.Empty(t, ips)

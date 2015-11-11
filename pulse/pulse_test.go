@@ -73,7 +73,7 @@ func TestGenericOptions(t *testing.T) {
 	err = opts.Validate()
 
 	require.Error(t, err)
-	require.Equal(t, ErrUnknownPulseType, err)
+	assert.Equal(t, ErrUnknownPulseType, err)
 
 	// Non-parsable interval.
 	opts = &Options{Type: "tcp", Interval: "60"}
@@ -86,7 +86,13 @@ func TestGenericOptions(t *testing.T) {
 	err = opts.Validate()
 
 	require.Error(t, err)
-	require.Equal(t, ErrInvalidPulseInterval, err)
+	assert.Equal(t, ErrInvalidPulseInterval, err)
+
+	// pulse.New() validating options.
+	_, err = New("host", 80, &Options{Type: "unknown-driver"})
+
+	require.Error(t, err)
+	assert.Equal(t, ErrUnknownPulseType, err)
 }
 
 func TestGETDriverOptions(t *testing.T) {
@@ -95,7 +101,7 @@ func TestGETDriverOptions(t *testing.T) {
 	err := opts.Validate()
 
 	require.Error(t, err)
-	require.Equal(t, ErrMissingHTTPPulsePath, err)
+	assert.Equal(t, ErrMissingHTTPPulsePath, err)
 }
 
 func TestMetrics(t *testing.T) {
@@ -146,7 +152,7 @@ func TestPulseStop(t *testing.T) {
 
 	defer close(pulseCh)
 
-	bp, err := New("", 0, &Options{Type: "none", Interval: "1s"})
+	bp, err := New("unknown-host", 80, &Options{Type: "tcp", Interval: "1s"})
 	require.NoError(t, err)
 
 	wg.Add(1)
@@ -154,6 +160,9 @@ func TestPulseStop(t *testing.T) {
 		bp.Loop(ID{"VsID", "rsID"}, pulseCh)
 		wg.Done()
 	}()
+
+	// Cover the pulse.StatusDown.String() case.
+	<-pulseCh
 
 	// In theory, this can hang the test forever.
 	bp.Stop()
@@ -227,7 +236,9 @@ func TestGETDriver(t *testing.T) {
 			}))
 
 		tcpAddr := ts.Listener.Addr().(*net.TCPAddr)
-		bp, err := New("localhost", uint16(tcpAddr.Port), &Options{Type: "http", Path: "/"})
+		bp, err := New("localhost", uint16(tcpAddr.Port), &Options{
+			Type: "http",
+			Path: "/"})
 		require.NoError(t, err)
 
 		assert.Equal(t, test.rv, bp.driver.Check())
@@ -235,7 +246,7 @@ func TestGETDriver(t *testing.T) {
 }
 
 func TestGETDriverNoConnection(t *testing.T) {
-	bp, err := New("no-such-host", 80, &Options{Type: "http", Path: "/"})
+	bp, err := New("unknown-host", 80, &Options{Type: "http", Path: "/"})
 	require.NoError(t, err)
 
 	// Connection failure.
