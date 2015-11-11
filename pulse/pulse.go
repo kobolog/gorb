@@ -64,7 +64,7 @@ func New(host string, port uint16, opts *Options) (*Pulse, error) {
 		return nil, err
 	}
 
-	stopCh := make(chan struct{}, 1)
+	stopCh := make(chan struct{})
 
 	return &Pulse{d, opts.interval, stopCh, NewMetrics()}, nil
 }
@@ -102,5 +102,5 @@ func (p *Pulse) Loop(id ID, pulseCh chan Update) {
 
 // Stop stops the Pulse.
 func (p *Pulse) Stop() {
-	p.stopCh <- struct{}{}
+	close(p.stopCh)
 }
