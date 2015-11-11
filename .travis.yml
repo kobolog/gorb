@@ -10,6 +10,7 @@ install:
   - go get github.com/gorilla/mux
   - go get github.com/sirupsen/logrus
   - go get github.com/tehnerd/gnl2go
+  - go get github.com/fsouza/go-dockerclient
 
 script:
   - ./.travis/script.sh . core pulse util gorb-docker-link
