@@ -252,3 +252,11 @@ func TestGETDriverNoConnection(t *testing.T) {
 	// Connection failure.
 	assert.Equal(t, StatusDown, bp.driver.Check())
 }
+
+func TestGETDriverInvalidURL(t *testing.T) {
+	bp, err := New("dog@mail.com", 80, &Options{Type: "http", Path: "/"})
+	require.NoError(t, err)
+
+	// Connection failure.
+	assert.Equal(t, StatusDown, bp.driver.Check())
+}
