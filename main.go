@@ -66,6 +66,9 @@ func main() {
 		log.Fatalf("error while initializing server context: %s", err)
 	}
 
+	// While it's not strictly required, close IPVS socket explicitly.
+	defer ctx.Close()
+
 	r := mux.NewRouter()
 
 	r.Handle("/service/{vsID}", serviceCreateHandler{ctx}).Methods("PUT")
@@ -75,9 +78,6 @@ func main() {
 	r.Handle("/service/{vsID}/{rsID}", backendRemoveHandler{ctx}).Methods("DELETE")
 	r.Handle("/service/{vsID}", serviceStatusHandler{ctx}).Methods("GET")
 	r.Handle("/service/{vsID}/{rsID}", backendStatusHandler{ctx}).Methods("GET")
-
-	// While it's not strictly required, close IPVS socket explicitly.
-	defer ctx.Close()
 
 	log.Infof("setting up HTTP server on %s", *listen)
 	log.Fatal(http.ListenAndServe(*listen, r))
