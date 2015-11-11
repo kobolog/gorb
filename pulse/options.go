@@ -30,7 +30,6 @@ import (
 
 // Possible validation errors.
 var (
-	ErrMissingHTTPPulsePath = errors.New("path for HTTP pulse is missing")
 	ErrUnknownPulseType     = errors.New("specified pulse type is unknown")
 	ErrInvalidPulseInterval = errors.New("pulse interval must be positive")
 )
@@ -57,16 +56,7 @@ func (o *Options) Validate() error {
 
 	o.Type = strings.ToLower(o.Type)
 
-	switch o.Type {
-	case "none":
-		// Nothing special for this Pulse type.
-	case "tcp":
-		// Nothing special for this Pulse type.
-	case "http":
-		if len(o.Path) == 0 {
-			return ErrMissingHTTPPulsePath
-		}
-	default:
+	if fn := get[o.Type]; fn == nil {
 		return ErrUnknownPulseType
 	}
 

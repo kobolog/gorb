@@ -33,35 +33,34 @@ import (
 type httpPulse struct {
 	Driver
 
-	method string
-	url    string
 	client http.Client
+	cooked *http.Request
 }
 
-func newGETDriver(host string, port uint16, opts *Options) Driver {
+func newGETDriver(host string, port uint16, opts *Options) (Driver, error) {
 	httpClient := http.Client{Timeout: 5 * time.Second, CheckRedirect: func(
 		req *http.Request,
 		via []*http.Request,
 	) error {
-		return errors.New("redirects are not supported for pulse requests")
+		return errors.New("redirects aren't supported for pulse request")
 	}}
 
-	url := url.URL{
-		Scheme: "http",
-		Host:   fmt.Sprintf("%s:%d", host, port),
-		Path:   opts.Path,
+	target := url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", host, port),
+		Path: opts.Path}
+
+	cooked, err := http.NewRequest("GET", target.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
-	return &httpPulse{method: "GET", url: url.String(), client: httpClient}
+	return &httpPulse{client: httpClient, cooked: cooked}, nil
 }
 
 func (p *httpPulse) Check() StatusType {
-	if req, err := http.NewRequest(p.method, p.url, nil); err != nil {
-		log.Errorf("error while creating a request: %s", err)
-	} else if r, err := p.client.Do(req); err != nil {
-		log.Errorf("error while communicating with %s: %s", p.url, err)
+	if r, err := p.client.Do(p.cooked); err != nil {
+		log.Errorf("error while communicating with %s: %s", p.cooked.URL, err)
 	} else if r.StatusCode != 200 {
-		log.Errorf("received non-200 status code from %s", p.url)
+		log.Errorf("received non-200 status code from %s", p.cooked.URL)
 	} else {
 		return StatusUp
 	}

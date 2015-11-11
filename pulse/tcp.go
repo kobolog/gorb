@@ -35,11 +35,11 @@ type tcpPulse struct {
 	dialer   net.Dialer
 }
 
-func newTCPDriver(host string, port uint16, opts *Options) Driver {
+func newTCPDriver(host string, port uint16, opts *Options) (Driver, error) {
 	return &tcpPulse{
 		endpoint: fmt.Sprintf("%s:%d", host, port),
 		dialer:   net.Dialer{DualStack: true, Timeout: 5 * time.Second},
-	}
+	}, nil
 }
 
 func (p *tcpPulse) Check() StatusType {

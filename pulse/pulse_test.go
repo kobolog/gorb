@@ -48,8 +48,8 @@ func TestGenericOptions(t *testing.T) {
 			&Options{Type: "tcp", Interval: "1m"},
 		},
 		{
-			&Options{Type: "http", Path: "/"},
-			&Options{Type: "http", Interval: "1m", Path: "/"},
+			&Options{Type: "http"},
+			&Options{Type: "http", Interval: "1m"},
 		},
 		{
 			&Options{Interval: "5s"},
@@ -93,15 +93,6 @@ func TestGenericOptions(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, ErrUnknownPulseType, err)
-}
-
-func TestGETDriverOptions(t *testing.T) {
-	// Missing HTTP path.
-	opts := &Options{Type: "http", Interval: "1s"}
-	err := opts.Validate()
-
-	require.Error(t, err)
-	assert.Equal(t, ErrMissingHTTPPulsePath, err)
 }
 
 func TestMetrics(t *testing.T) {
@@ -170,10 +161,10 @@ func TestPulseStop(t *testing.T) {
 }
 
 func TestNopDriver(t *testing.T) {
-	driver := newNopDriver()
+	bp, err := New("", 0, &Options{Type: "none"})
+	require.NoError(t, err)
 
-	require.NotNil(t, driver)
-	assert.Equal(t, StatusUp, driver.Check())
+	assert.Equal(t, StatusUp, bp.driver.Check())
 }
 
 func TestTCPDriver(t *testing.T) {
@@ -182,12 +173,10 @@ func TestTCPDriver(t *testing.T) {
 
 	go func() {
 		cn, err := ln.Accept()
+		defer cn.Close()
 
 		// TODO(@kobolog): Not sure if it's usable in goroutines.
 		require.NoError(t, err)
-
-		cn.Close()
-		ln.Close()
 	}()
 
 	tcpAddr := ln.Addr().(*net.TCPAddr)
@@ -196,6 +185,8 @@ func TestTCPDriver(t *testing.T) {
 
 	// Normal connection attempt.
 	assert.Equal(t, StatusUp, bp.driver.Check())
+
+	ln.Close()
 
 	// Connection failure.
 	assert.Equal(t, StatusDown, bp.driver.Check())
@@ -236,25 +227,20 @@ func TestGETDriver(t *testing.T) {
 			}))
 
 		tcpAddr := ts.Listener.Addr().(*net.TCPAddr)
-		bp, err := New("localhost", uint16(tcpAddr.Port), &Options{
-			Type: "http",
-			Path: "/"})
+		bp, err := New("localhost", uint16(tcpAddr.Port), &Options{Type: "http"})
 		require.NoError(t, err)
 
 		assert.Equal(t, test.rv, bp.driver.Check())
 	}
 }
 
-func TestGETDriverNoConnection(t *testing.T) {
-	bp, err := New("unknown-host", 80, &Options{Type: "http", Path: "/"})
-	require.NoError(t, err)
-
-	// Connection failure.
-	assert.Equal(t, StatusDown, bp.driver.Check())
+func TestGETDriverInvalidURL(t *testing.T) {
+	_, err := New("dog@mail.com", 80, &Options{Type: "http"})
+	require.Error(t, err)
 }
 
-func TestGETDriverInvalidURL(t *testing.T) {
-	bp, err := New("dog@mail.com", 80, &Options{Type: "http", Path: "/"})
+func TestGETDriverNoConnection(t *testing.T) {
+	bp, err := New("unknown-host", 80, &Options{Type: "http"})
 	require.NoError(t, err)
 
 	// Connection failure.

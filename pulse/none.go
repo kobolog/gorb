@@ -24,8 +24,8 @@ type constantDriver struct {
 	status StatusType
 }
 
-func newNopDriver() Driver {
-	return &constantDriver{StatusUp}
+func newNopDriver(host string, port uint16, opts *Options) (Driver, error) {
+	return &constantDriver{StatusUp}, nil
 }
 
 func (p *constantDriver) Check() StatusType {
