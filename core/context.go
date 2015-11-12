@@ -61,6 +61,7 @@ type Context struct {
 	mutex    sync.RWMutex
 	pulseCh  chan pulse.Update
 	disco    disco.Driver
+	stopCh   chan struct{}
 }
 
 // NewContext creates a new Context and initializes IPVS.
@@ -72,6 +73,7 @@ func NewContext(options ContextOptions) (*Context, error) {
 		services: make(map[string]*service),
 		backends: make(map[string]*backend),
 		pulseCh:  make(chan pulse.Update),
+		stopCh:   make(chan struct{}),
 	}
 
 	if len(options.Disco) > 0 {
@@ -124,7 +126,7 @@ func (ctx *Context) Close() {
 	log.Info("shutting down IPVS context")
 
 	// This will also shutdown the pulse notification sink goroutine.
-	close(ctx.pulseCh)
+	close(ctx.stopCh)
 
 	for vsID := range ctx.services {
 		ctx.RemoveService(vsID)
@@ -219,7 +221,7 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 	ctx.backends[rsID] = &backend{options: opts, service: vs, monitor: p}
 
 	// Fire off the configured pulse goroutine, attach it to the Context.
-	go ctx.backends[rsID].monitor.Loop(pulse.ID{VsID: vsID, RsID: rsID}, ctx.pulseCh)
+	go ctx.backends[rsID].monitor.Loop(pulse.ID{VsID: vsID, RsID: rsID}, ctx.pulseCh, ctx.stopCh)
 
 	return nil
 }
