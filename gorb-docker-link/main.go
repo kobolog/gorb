@@ -213,7 +213,7 @@ func main() {
 	}
 
 	if len(r) != 0 {
-		log.Infof("bootsrapping with existing containers")
+		log.Infof("bootstrapping with existing containers")
 
 		e := []error{}
 
