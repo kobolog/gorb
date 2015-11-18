@@ -193,7 +193,7 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 	ctx.backends[rsID] = &backend{options: opts, service: vs, monitor: p}
 
 	// Fire off the configured pulse goroutine, attach it to the Context.
-	go ctx.backends[rsID].monitor.Loop(pulse.ID{vsID, rsID}, ctx.pulseCh)
+	go ctx.backends[rsID].monitor.Loop(pulse.ID{VsID: vsID, RsID: rsID}, ctx.pulseCh)
 
 	return nil
 }

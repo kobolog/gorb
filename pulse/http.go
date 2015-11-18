@@ -37,7 +37,7 @@ type httpPulse struct {
 	cooked *http.Request
 }
 
-func newGETDriver(host string, port uint16, opts *Options) (Driver, error) {
+func newGETDriver(host string, port uint16, opts DriverOptions) (Driver, error) {
 	httpClient := http.Client{Timeout: 5 * time.Second, CheckRedirect: func(
 		req *http.Request,
 		via []*http.Request,
@@ -46,7 +46,7 @@ func newGETDriver(host string, port uint16, opts *Options) (Driver, error) {
 	}}
 
 	target := url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", host, port),
-		Path: opts.Path}
+		Path: opts.Get("path", "/").(string)}
 
 	cooked, err := http.NewRequest("GET", target.String(), nil)
 	if err != nil {

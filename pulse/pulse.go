@@ -33,7 +33,7 @@ type Driver interface {
 }
 
 var (
-	get = map[string]func(string, uint16, *Options) (Driver, error){
+	get = map[string]func(string, uint16, DriverOptions) (Driver, error){
 		"tcp":  newTCPDriver,
 		"http": newGETDriver,
 		"none": newNopDriver,
@@ -57,7 +57,7 @@ func New(host string, port uint16, opts *Options) (*Pulse, error) {
 		return nil, err
 	}
 
-	d, err := get[opts.Type](host, port, opts)
+	d, err := get[opts.Type](host, port, opts.Args)
 	if err != nil {
 		return nil, err
 	}

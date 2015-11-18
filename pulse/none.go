@@ -24,7 +24,7 @@ type constantDriver struct {
 	status StatusType
 }
 
-func newNopDriver(host string, port uint16, opts *Options) (Driver, error) {
+func newNopDriver(host string, port uint16, opts DriverOptions) (Driver, error) {
 	return &constantDriver{StatusUp}, nil
 }
 
