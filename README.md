@@ -37,8 +37,12 @@ address automatically based on the configured default device:
     "method": "nat|tunnel",
     "pulse": {
         "type": "none|tcp|http",
-        "interval": "5s",
-        "path": "/health (ignored for tcp pulse)"
+        "args": {
+            "method": "GET",
+            "path": "/health",
+            "expect": 200
+        },
+        "interval": "5s"
     },
     "weight": 100
 }
@@ -52,7 +56,7 @@ For more information and various configuration options description, consult [`ma
 
 ## TODO
 
-- Add more options for Gorb Pulse: thresholds, HTTP verbs and expected responses, exponential back-offs and so on.
+- Add more options for Gorb Pulse: thresholds, exponential back-offs and so on.
 - Support for IPVS statistics (requires GNL2GO support first).
 - Support for FWMARK & DR virtual services.
 - Add BGP host-route announces, so that multiple GORBs could expose a service on the same IP across the cluster.
