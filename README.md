@@ -8,6 +8,8 @@ This daemon is an IPVS frontend with a REST API interface. You can use it to con
 
 Backends which fail to pass the health check will have weights set to zero to inhibit any traffic from being routed into their direction. When a backend comes back online, GORB won't immediately set its weight to the previous value, but instead gradually restore it based on backend's accumulated health statistics.
 
+Check out these [slides for my DockerCon EU 2015 talk](http://www.slideshare.net/kobolog/ipvs-for-docker-containers) for more information about IPVS, GORB and how to use it with Docker.
+
 ## Configuration
 
 There's not much of a configuration required - only a handlful of options can be specified on the command line:
