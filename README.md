@@ -14,7 +14,7 @@ Check out these [slides for my DockerCon EU 2015 talk](http://www.slideshare.net
 
 There's not much of a configuration required - only a handlful of options can be specified on the command line:
 
-    gorb [-l <listen-address>] [-d <device>] [-f flush-pools] | -h
+    gorb [-l <listen-address>] [-i <interface>] [-f flush-pools] | -h
 
 By default, GORB will listen on `:4672`, bind services on `eth0` and keep your IPVS pool intact on launch.
 
