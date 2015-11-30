@@ -28,6 +28,7 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/kobolog/gorb/core"
 	"github.com/kobolog/gorb/util"
@@ -163,6 +164,16 @@ func invokeFunc(vs, rs string, ports []gdc.APIPort, fn portAction) []error {
 			// Rewrite "catch-all" host to a real host's IP address.
 			binding.IP = hostIPs[0].String()
 		}
+
+		// Mangle the VS name.
+		vs = fmt.Sprintf("%s_%d_%s", strings.Map(func(r rune) rune {
+			switch r {
+			case '/':
+				return '-'
+			default:
+				return r
+			}
+		}, vs), binding.PrivatePort, binding.Type)
 
 		if err := fn(vs, rs, binding); err == nil {
 			n++
