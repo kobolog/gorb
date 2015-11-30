@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/kobolog/gorb/core"
+	"github.com/kobolog/gorb/pulse"
 	"github.com/kobolog/gorb/util"
 
 	gdc "github.com/fsouza/go-dockerclient"
@@ -116,6 +117,12 @@ func createBackend(vs, rs string, b gdc.APIPort) error {
 	}
 
 	opts := core.BackendOptions{Host: b.IP, Port: uint16(b.PublicPort)}
+
+	if b.Type == "udp" {
+		// Disable pulse for UDP backends.
+		opts.Pulse = &pulse.Options{Type: "none"}
+	}
+
 	data := bytes.NewBuffer(util.MustMarshal(opts, util.JSONOptions{}))
 
 	rqst, _ := http.NewRequest(
