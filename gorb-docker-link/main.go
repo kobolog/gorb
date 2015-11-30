@@ -166,16 +166,19 @@ func invokeFunc(vs, rs string, ports []gdc.APIPort, fn portAction) []error {
 		}
 
 		// Mangle the VS name.
-		vs = fmt.Sprintf("%s_%d_%s", strings.Map(func(r rune) rune {
+		vsID := fmt.Sprintf("%s_%d_%s", strings.Map(func(r rune) rune {
 			switch r {
-			case '/':
+			case '/', ':':
 				return '-'
 			default:
 				return r
 			}
 		}, vs), binding.PrivatePort, binding.Type)
 
-		if err := fn(vs, rs, binding); err == nil {
+		// Mangle the RS name.
+		rsID := fmt.Sprintf("%s_%d_%s", rs, binding.PrivatePort, binding.Type)
+
+		if err := fn(vsID, rsID, binding); err == nil {
 			n++
 		} else {
 			e = append(e, err)
@@ -263,7 +266,7 @@ func main() {
 			continue
 		}
 
-		if e := invokeFunc(i.Path, i.Name, b, fn); len(e) != 0 {
+		if e := invokeFunc(i.Config.Image, i.Name, b, fn); len(e) != 0 {
 			log.Errorf("error(s) while processing container %s: %s", event.ID, e)
 		}
 	}
