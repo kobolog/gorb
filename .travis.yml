@@ -4,6 +4,8 @@ go:
   - 1.5
   - tip
 
+sudo: false
+
 install:
   - go get github.com/stretchr/testify/assert
   - go get github.com/stretchr/testify/require
