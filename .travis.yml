@@ -13,7 +13,7 @@ install:
   - go get github.com/fsouza/go-dockerclient
 
 script:
-  - ./.travis/script.sh . core pulse util gorb-docker-link
+  - ./.travis/script.sh . core disco pulse util gorb-docker-link
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
