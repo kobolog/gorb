@@ -23,28 +23,35 @@ package disco
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"net/http"
+	"net/url"
+	"path"
 	"time"
 
 	"github.com/kobolog/gorb/util"
 )
 
 var (
-	errUnexpectedResponse = errors.New("error while communicating with Consul")
+	errConsulError = errors.New("error while calling into Consul")
 )
 
 type consulDisco struct {
 	Driver
 
 	client http.Client
-	consul string
+	consul *url.URL
 }
 
 func newConsulDriver(opts util.DynamicMap) (Driver, error) {
+	u, err := url.Parse(
+		opts.Get("URL", "http://localhost:8500").(string))
+	if err != nil {
+		return nil, err
+	}
+
 	return &consulDisco{
 		client: http.Client{Timeout: 5 * time.Second},
-		consul: opts.Get("URL", "localhost:8500").(string),
+		consul: u,
 	}, nil
 }
 
@@ -55,8 +62,11 @@ type exposeRequest struct {
 }
 
 func (c *consulDisco) Expose(name, host string, port uint16) error {
+	u := *c.consul
+	u.Path = "v1/agent/service/register"
+
 	r, err := c.client.Post(
-		fmt.Sprintf("%s/%s", c.consul, "v1/agent/service/register"),
+		u.String(),
 		"application/json",
 		bytes.NewBuffer(util.MustMarshal(exposeRequest{
 			Name: name,
@@ -68,21 +78,23 @@ func (c *consulDisco) Expose(name, host string, port uint16) error {
 	}
 
 	if r.StatusCode != http.StatusOK {
-		return errUnexpectedResponse
+		return errConsulError
 	}
 
 	return nil
 }
 
 func (c *consulDisco) Remove(name string) error {
-	r, err := c.client.Get(
-		fmt.Sprintf("%s/%s/%s", c.consul, "v1/agent/service/deregister", name))
+	u := *c.consul
+	u.Path = path.Join("v1/agent/service/deregister", name)
+
+	r, err := c.client.Get(u.String())
 	if err != nil {
 		return err
 	}
 
 	if r.StatusCode != http.StatusOK {
-		return errUnexpectedResponse
+		return errConsulError
 	}
 
 	return nil

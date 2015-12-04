@@ -52,15 +52,15 @@ func TestConsulDriver(t *testing.T) {
 				return cd.Expose("name", "host", 1024)
 			},
 			func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, "POST", r.Method)
-				require.Equal(t, "/v1/agent/service/register", r.URL.RequestURI())
+				assert.Equal(t, "POST", r.Method)
+				assert.Equal(t, "/v1/agent/service/register", r.URL.RequestURI())
 
 				var req exposeRequest
 				err := json.NewDecoder(r.Body).Decode(&req)
 
 				// Make sure that we send the proper request.
 				require.NoError(t, err)
-				require.Equal(t, exposeRequest{Name: "name", Host: "host", Port: 1024}, req)
+				assert.Equal(t, exposeRequest{Name: "name", Host: "host", Port: 1024}, req)
 			},
 			nil,
 		},
@@ -72,7 +72,7 @@ func TestConsulDriver(t *testing.T) {
 			func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
-			errUnexpectedResponse,
+			errConsulError,
 		},
 		{
 			// Normal response code for Remove().
@@ -80,8 +80,8 @@ func TestConsulDriver(t *testing.T) {
 				return cd.Remove("name")
 			},
 			func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, "GET", r.Method)
-				require.Equal(t, "/v1/agent/service/deregister/name", r.URL.RequestURI())
+				assert.Equal(t, "GET", r.Method)
+				assert.Equal(t, "/v1/agent/service/deregister/name", r.URL.RequestURI())
 			},
 			nil,
 		},
@@ -93,7 +93,7 @@ func TestConsulDriver(t *testing.T) {
 			func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
-			errUnexpectedResponse,
+			errConsulError,
 		},
 	}
 
@@ -111,10 +111,14 @@ func TestConsulDriver(t *testing.T) {
 }
 
 func TestConsulDriverInvalidURL(t *testing.T) {
+	// Unparsable URLs.
+	_, err := New(&Options{Type: "consul", Args: util.DynamicMap{"URL": "http://f%%k"}})
+	require.Error(t, err)
+
 	cd, err := New(&Options{Type: "consul", Args: util.DynamicMap{"URL": "dog@mail.com"}})
 	require.NoError(t, err)
 
-	// Make sure the driver fails with broken Consul URLs.
-	require.Error(t, cd.Expose("name", "host", 1024))
-	require.Error(t, cd.Remove("name"))
+	// Make sure the driver fails with non-HTTP Consul URLs.
+	assert.Error(t, cd.Expose("name", "host", 1024))
+	assert.Error(t, cd.Remove("name"))
 }

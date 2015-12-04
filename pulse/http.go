@@ -32,6 +32,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	errRedirects = errors.New("redirects are not supported for pulse requests")
+)
+
 type httpPulse struct {
 	Driver
 
@@ -45,7 +49,7 @@ func newGETDriver(host string, port uint16, opts util.DynamicMap) (Driver, error
 		req *http.Request,
 		via []*http.Request,
 	) error {
-		return errors.New("redirects are not supported for pulse requests")
+		return errRedirects
 	}}
 
 	u := url.URL{

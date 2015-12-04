@@ -33,11 +33,11 @@ import (
 )
 
 var (
-	debug  = flag.Bool("v", false, "verbose output")
+	debug  = flag.Bool("v", false, "enable verbose output")
 	device = flag.String("i", "eth0", "default interface to bind services on")
 	flush  = flag.Bool("f", false, "flush IPVS pools on start")
-	listen = flag.String("l", ":4672", "endpoint to listen for HTTP connection")
-	consul = flag.String("c", "", "endpoint for Consul")
+	listen = flag.String("l", ":4672", "endpoint to listen for HTTP requests")
+	consul = flag.String("c", "", "URL for Consul HTTP API")
 )
 
 func main() {
