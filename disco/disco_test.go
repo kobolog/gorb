@@ -34,10 +34,10 @@ import (
 
 func TestNoopDriver(t *testing.T) {
 	nd, err := New(&Options{Type: "none"})
-	require.NoError(err)
+	require.NoError(t, err)
 
-	assert.NoError(nd.Expose("name", "host", 1024))
-	assert.NoError(nd.Remove("name"))
+	assert.NoError(t, nd.Expose("name", "host", 1024))
+	assert.NoError(t, nd.Remove("name"))
 }
 
 func TestConsulDriver(t *testing.T) {
