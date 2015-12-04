@@ -8,7 +8,7 @@ This daemon is an IPVS frontend with a REST API interface. You can use it to con
 
 Backends which fail to pass the health check will have weights set to zero to inhibit any traffic from being routed into their direction. When a backend comes back online, GORB won't immediately set its weight to the previous value, but instead gradually restore it based on backend's accumulated health statistics.
 
-GORB also supports basic service discovery registration via [Consul](https://www.consul.io): just pass in the Consul endpoint to GORB and it will take care of everything else – your services will be registered with names like `nginx_80_tcp`. Keep in mind that you can use Consul's built-in DNS server to make it even easier to discover your services!
+GORB also supports basic service discovery registration via [Consul](https://www.consul.io): just pass in the Consul endpoint to GORB and it will take care of everything else – your services will be registered with names like `nginx-80-tcp`. Keep in mind that you can use Consul's built-in DNS server to make it even easier to discover your services!
 
 Check out these [slides for my DockerCon EU 2015 talk](http://www.slideshare.net/kobolog/ipvs-for-docker-containers) for more information about IPVS, GORB and how to use it with Docker.
 
