@@ -24,6 +24,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/kobolog/gorb/util"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,7 +35,7 @@ type Driver interface {
 }
 
 var (
-	get = map[string]func(string, uint16, DriverOptions) (Driver, error){
+	get = map[string]func(string, uint16, util.DynamicMap) (Driver, error){
 		"tcp":  newTCPDriver,
 		"http": newGETDriver,
 		"none": newNopDriver,

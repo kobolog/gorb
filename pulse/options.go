@@ -22,13 +22,10 @@ package pulse
 
 import (
 	"errors"
-	"reflect"
 	"strings"
 	"time"
 
 	"github.com/kobolog/gorb/util"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Possible validation errors.
@@ -37,28 +34,13 @@ var (
 	ErrInvalidPulseInterval = errors.New("pulse interval must be positive")
 )
 
-// DriverOptions are arbitrary options passed directly to the driver.
-type DriverOptions map[string]interface{}
-
 // Options contain Pulse configuration.
 type Options struct {
-	Type     string        `json:"type"`
-	Interval string        `json:"interval"`
-	Args     DriverOptions `json:"args"`
+	Type     string          `json:"type"`
+	Interval string          `json:"interval"`
+	Args     util.DynamicMap `json:"args"`
 
 	interval time.Duration
-}
-
-// Get returns a typed option or a default value if the option is not set.
-func (do DriverOptions) Get(key string, d interface{}) interface{} {
-	if v, exists := do[key]; !exists {
-		return d
-	} else if vt, dt := reflect.TypeOf(v), reflect.TypeOf(d); vt.ConvertibleTo(dt) {
-		return v
-	} else {
-		log.Warnf("got %s instead of %s for option %s", vt, dt, key)
-		return d
-	}
 }
 
 // Validate fills missing fields and validates Pulse configuration.

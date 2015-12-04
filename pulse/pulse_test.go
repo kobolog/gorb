@@ -95,22 +95,6 @@ func TestGenericOptions(t *testing.T) {
 	assert.Equal(t, ErrUnknownPulseType, err)
 }
 
-func TestDriverOptions(t *testing.T) {
-	do := DriverOptions{"key": "value", "foo": 42}
-
-	// Existing key.
-	assert.Equal(t, "value", do.Get("key", "default"))
-
-	// Default valut.
-	assert.Equal(t, "default", do.Get("other-key", "default"))
-
-	// Implicit conversion.
-	assert.Equal(t, 42, do.Get("foo", 10.0))
-
-	// Incompatible types.
-	assert.Equal(t, false, do.Get("foo", false))
-}
-
 func TestMetrics(t *testing.T) {
 	m := NewMetrics()
 
@@ -187,12 +171,16 @@ func TestTCPDriver(t *testing.T) {
 	ln, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
 
-	go func() {
-		cn, err := ln.Accept()
-		defer cn.Close()
+	var wg sync.WaitGroup
 
-		// TODO(@kobolog): Not sure if it's usable in goroutines.
-		require.NoError(t, err)
+	wg.Add(1)
+	go func() {
+		cn, _ := ln.Accept()
+
+		// Simulate the peer termination.
+		cn.Close()
+		ln.Close()
+		wg.Done()
 	}()
 
 	tcpAddr := ln.Addr().(*net.TCPAddr)
@@ -202,7 +190,8 @@ func TestTCPDriver(t *testing.T) {
 	// Normal connection attempt.
 	assert.Equal(t, StatusUp, bp.driver.Check())
 
-	ln.Close()
+	// Wait for the listener to be closed.
+	wg.Wait()
 
 	// Connection failure.
 	assert.Equal(t, StatusDown, bp.driver.Check())

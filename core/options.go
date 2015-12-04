@@ -40,8 +40,9 @@ var (
 
 // ContextOptions configure Context behavior.
 type ContextOptions struct {
-	Flush     bool
+	Disco     string
 	Endpoints []net.IP
+	Flush     bool
 }
 
 // ServiceOptions describe a virtual service.

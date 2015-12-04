@@ -27,6 +27,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/kobolog/gorb/util"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,7 +40,7 @@ type httpPulse struct {
 	expect int
 }
 
-func newGETDriver(host string, port uint16, opts DriverOptions) (Driver, error) {
+func newGETDriver(host string, port uint16, opts util.DynamicMap) (Driver, error) {
 	c := http.Client{Timeout: 5 * time.Second, CheckRedirect: func(
 		req *http.Request,
 		via []*http.Request,

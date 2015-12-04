@@ -18,39 +18,22 @@
    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-package pulse
+package util
 
 import (
-	"fmt"
-	"net"
-	"time"
-
-	"github.com/kobolog/gorb/util"
-
-	log "github.com/sirupsen/logrus"
+	"reflect"
 )
 
-type tcpPulse struct {
-	Driver
+// DynamicMap are arbitrary options passed directly to the driver.
+type DynamicMap map[string]interface{}
 
-	endpoint string
-	dialer   net.Dialer
-}
-
-func newTCPDriver(host string, port uint16, opts util.DynamicMap) (Driver, error) {
-	return &tcpPulse{
-		endpoint: fmt.Sprintf("%s:%d", host, port),
-		dialer:   net.Dialer{DualStack: true, Timeout: 5 * time.Second},
-	}, nil
-}
-
-func (p *tcpPulse) Check() StatusType {
-	if socket, err := p.dialer.Dial("tcp", p.endpoint); err != nil {
-		log.Errorf("unable to connect to %s", p.endpoint)
+// Get returns a typed option or a default value if the option is not set.
+func (do DynamicMap) Get(key string, d interface{}) interface{} {
+	if v, exists := do[key]; !exists {
+		return d
+	} else if vt, dt := reflect.TypeOf(v), reflect.TypeOf(d); vt.ConvertibleTo(dt) {
+		return v
 	} else {
-		socket.Close()
-		return StatusUp
+		return d
 	}
-
-	return StatusDown
 }
