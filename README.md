@@ -58,10 +58,9 @@ For more information and various configuration options description, consult [`ma
 
 ## TODO
 
-- Add more options for Gorb Pulse: thresholds, exponential back-offs and so on.
-- Support for IPVS statistics (requires GNL2GO support first).
-- Support for FWMARK & DR virtual services.
-- Add service discovery support, e.g. automatic Consul service registration.
-- Add BGP host-route announces, so that multiple GORBs could expose a service on the same IP across the cluster.
-- Add some primitive UI to present the same action palette but in an user-friendly fashion.
-- Add dynamic DNS registration support, so that GORBs could register new service names on some provided subdomain.
+- [ ] Add more options for Gorb Pulse: thresholds, exponential back-offs and so on.
+- [ ] Support for IPVS statistics (requires GNL2GO support first).
+- [ ] Support for FWMARK & DR virtual services (requires GNL2GO support first).
+- [ ] Add service discovery support, e.g. automatic Consul service registration.
+- [ ] Add BGP host-route announces, so that multiple GORBs could expose a service on the same IP across the cluster.
+- [ ] Add some primitive UI to present the same action palette but in an user-friendly fashion.
