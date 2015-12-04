@@ -14,7 +14,7 @@ Check out these [slides for my DockerCon EU 2015 talk](http://www.slideshare.net
 
 There's not much of a configuration required - only a handlful of options can be specified on the command line:
 
-    gorb [-l <listen-address>] [-i <interface>] [-f flush-pools] | -h
+    gorb [-c <consul-address>] [-f flush-pools] [-i interface] [-l listen-address] | -h
 
 By default, GORB will listen on `:4672`, bind services on `eth0` and keep your IPVS pool intact on launch.
 
@@ -61,6 +61,7 @@ For more information and various configuration options description, consult [`ma
 - [ ] Add more options for Gorb Pulse: thresholds, exponential back-offs and so on.
 - [ ] Support for IPVS statistics (requires GNL2GO support first).
 - [ ] Support for FWMARK & DR virtual services (requires GNL2GO support first).
-- [ ] Add service discovery support, e.g. automatic Consul service registration.
+- [x] Add service discovery support, e.g. automatic Consul service registration.
 - [ ] Add BGP host-route announces, so that multiple GORBs could expose a service on the same IP across the cluster.
 - [ ] Add some primitive UI to present the same action palette but in an user-friendly fashion.
+- [ ] Replace command line options with proper configuration via a JSON/YAML/TOML file.
