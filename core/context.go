@@ -86,6 +86,8 @@ func NewContext(options ContextOptions) (*Context, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		ctx.disco, _ = disco.New(&disco.Options{Type: "none"})
 	}
 
 	if len(options.Endpoints) > 0 {
@@ -156,8 +158,8 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 
 	ctx.services[vsID] = &service{options: opts}
 
-	if ctx.disco != nil {
-		ctx.disco.Expose(vsID, opts.host.String(), opts.Port)
+	if err := ctx.disco.Expose(vsID, opts.host.String(), opts.Port); err != nil {
+		log.Errorf("error while exposing service to Disco: %s", err)
 	}
 
 	return nil
@@ -292,9 +294,9 @@ func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 		delete(ctx.backends, rsID)
 	}
 
-	if ctx.disco != nil {
-		// TODO(@kobolog): This will never happen in case of gorb-link.
-		ctx.disco.Remove(vsID)
+	// TODO(@kobolog): This will never happen in case of gorb-link.
+	if err := ctx.disco.Remove(vsID); err != nil {
+		log.Errorf("error while removing service from Disco: %s", err)
 	}
 
 	return vs.options, nil

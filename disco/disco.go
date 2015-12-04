@@ -38,5 +38,20 @@ type Options struct {
 
 // New creates a new Discovery from the provided options.
 func New(opts *Options) (Driver, error) {
-	return newConsulDriver(opts.Args)
+	switch opts.Type {
+	case "consul":
+		return newConsulDriver(opts.Args)
+	default:
+		return &noopDriver{}, nil
+	}
+}
+
+type noopDriver struct{}
+
+func (d *noopDriver) Expose(name, host string, port uint16) error {
+	return nil
+}
+
+func (d *noopDriver) Remove(name string) error {
+	return nil
 }

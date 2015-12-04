@@ -49,7 +49,7 @@ func newConsulDriver(opts util.DynamicMap) (Driver, error) {
 }
 
 type exposeRequest struct {
-	Name string `json:"ID"`
+	Name string `json:"Name"`
 	Host string `json:"Address"`
 	Port uint16 `json:"Port"`
 }

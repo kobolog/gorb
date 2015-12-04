@@ -32,6 +32,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNoopDriver(t *testing.T) {
+	nd, err := New(&Options{Type: "none"})
+	require.NoError(err)
+
+	assert.NoError(nd.Expose("name", "host", 1024))
+	assert.NoError(nd.Remove("name"))
+}
+
 func TestConsulDriver(t *testing.T) {
 	tests := []struct {
 		op func(cd Driver) error

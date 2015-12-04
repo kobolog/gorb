@@ -48,7 +48,7 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	log.Info("starting GORB Daemon v0.1")
+	log.Info("starting GORB Daemon v0.2")
 
 	if os.Geteuid() != 0 {
 		log.Fatalf("this program has to be run with root priveleges to access IPVS")

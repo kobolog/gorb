@@ -38,7 +38,7 @@ var (
 	get = map[string]func(string, uint16, util.DynamicMap) (Driver, error){
 		"tcp":  newTCPDriver,
 		"http": newGETDriver,
-		"none": newNopDriver,
+		"none": newNoopDriver,
 	}
 
 	// Use a separate random device to avoid fucking with other packages.
