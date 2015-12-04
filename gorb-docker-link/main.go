@@ -173,7 +173,7 @@ func invokeFunc(vs, rs string, ports []gdc.APIPort, fn portAction) []error {
 		}
 
 		// Mangle the VS name.
-		vsID := fmt.Sprintf("%s_%d_%s", strings.Map(func(r rune) rune {
+		vsID := fmt.Sprintf("%s-%d-%s", strings.Map(func(r rune) rune {
 			switch r {
 			case '/', ':':
 				return '-'
