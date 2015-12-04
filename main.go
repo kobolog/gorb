@@ -37,6 +37,7 @@ var (
 	device = flag.String("i", "eth0", "default interface to bind services on")
 	flush  = flag.Bool("f", false, "flush IPVS pools on start")
 	listen = flag.String("l", ":4672", "endpoint to listen for HTTP connection")
+	consul = flag.String("c", "", "endpoint for Consul")
 )
 
 func main() {
@@ -59,8 +60,9 @@ func main() {
 	}
 
 	ctx, err := core.NewContext(core.ContextOptions{
-		Flush:     *flush,
-		Endpoints: hostIPs})
+		Disco:     *consul,
+		Endpoints: hostIPs,
+		Flush:     *flush})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)

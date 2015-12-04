@@ -25,6 +25,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/kobolog/gorb/disco"
 	"github.com/kobolog/gorb/pulse"
 	"github.com/kobolog/gorb/util"
 
@@ -59,6 +60,7 @@ type Context struct {
 	backends map[string]*backend
 	mutex    sync.RWMutex
 	pulseCh  chan pulse.Update
+	disco    disco.Driver
 }
 
 // NewContext creates a new Context and initializes IPVS.
@@ -70,6 +72,20 @@ func NewContext(options ContextOptions) (*Context, error) {
 		services: make(map[string]*service),
 		backends: make(map[string]*backend),
 		pulseCh:  make(chan pulse.Update),
+	}
+
+	if len(options.Disco) > 0 {
+		log.Infof("creating Consul client with Agent URL: %s", options.Disco)
+
+		var err error
+
+		ctx.disco, err = disco.New(&disco.Options{
+			Type: "consul",
+			Args: util.DynamicMap{"URL": options.Disco}})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(options.Endpoints) > 0 {
@@ -86,7 +102,7 @@ func NewContext(options ContextOptions) (*Context, error) {
 	}
 
 	if options.Flush && ctx.ipvs.Flush() != nil {
-		log.Errorf("unable to clean up IPVS pools")
+		log.Errorf("unable to clean up IPVS pools - ensure ip_vs is loaded")
 		ctx.Close()
 		return nil, ErrIpvsSyscallFailed
 	}
@@ -139,6 +155,10 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 	}
 
 	ctx.services[vsID] = &service{options: opts}
+
+	if ctx.disco != nil {
+		ctx.disco.Expose(vsID, opts.host.String(), opts.Port)
+	}
 
 	return nil
 }
@@ -270,6 +290,11 @@ func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 		backend.monitor.Stop()
 
 		delete(ctx.backends, rsID)
+	}
+
+	if ctx.disco != nil {
+		// TODO(@kobolog): This will never happen in case of gorb-link.
+		ctx.disco.Remove(vsID)
 	}
 
 	return vs.options, nil

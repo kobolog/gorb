@@ -20,11 +20,15 @@
 
 package pulse
 
+import (
+	"github.com/kobolog/gorb/util"
+)
+
 type constantDriver struct {
 	status StatusType
 }
 
-func newNopDriver(host string, port uint16, opts DriverOptions) (Driver, error) {
+func newNopDriver(host string, port uint16, opts util.DynamicMap) (Driver, error) {
 	return &constantDriver{StatusUp}, nil
 }
 

@@ -95,22 +95,6 @@ func TestGenericOptions(t *testing.T) {
 	assert.Equal(t, ErrUnknownPulseType, err)
 }
 
-func TestDriverOptions(t *testing.T) {
-	do := DriverOptions{"key": "value", "foo": 42}
-
-	// Existing key.
-	assert.Equal(t, "value", do.Get("key", "default"))
-
-	// Default valut.
-	assert.Equal(t, "default", do.Get("other-key", "default"))
-
-	// Implicit conversion.
-	assert.Equal(t, 42, do.Get("foo", 10.0))
-
-	// Incompatible types.
-	assert.Equal(t, false, do.Get("foo", false))
-}
-
 func TestMetrics(t *testing.T) {
 	m := NewMetrics()
 
