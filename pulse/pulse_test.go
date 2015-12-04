@@ -171,12 +171,16 @@ func TestTCPDriver(t *testing.T) {
 	ln, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
 
-	go func() {
-		cn, err := ln.Accept()
-		defer cn.Close()
+	var wg sync.WaitGroup
 
-		// TODO(@kobolog): Not sure if it's usable in goroutines.
-		require.NoError(t, err)
+	wg.Add(1)
+	go func() {
+		cn, _ := ln.Accept()
+
+		// Simulate the peer termination.
+		cn.Close()
+		ln.Close()
+		wg.Done()
 	}()
 
 	tcpAddr := ln.Addr().(*net.TCPAddr)
@@ -186,7 +190,8 @@ func TestTCPDriver(t *testing.T) {
 	// Normal connection attempt.
 	assert.Equal(t, StatusUp, bp.driver.Check())
 
-	ln.Close()
+	// Wait for the listener to be closed.
+	wg.Wait()
 
 	// Connection failure.
 	assert.Equal(t, StatusDown, bp.driver.Check())
