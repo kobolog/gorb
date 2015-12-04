@@ -183,7 +183,7 @@ func invokeFunc(vs, rs string, ports []gdc.APIPort, fn portAction) []error {
 		}, vs), binding.PrivatePort, binding.Type)
 
 		// Mangle the RS name.
-		rsID := fmt.Sprintf("%s_%d_%s", rs, binding.PrivatePort, binding.Type)
+		rsID := fmt.Sprintf("%s-%d-%s", rs, binding.PrivatePort, binding.Type)
 
 		if err := fn(vsID, rsID, binding); err == nil {
 			n++
