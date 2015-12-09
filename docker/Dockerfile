@@ -1,5 +1,8 @@
-FROM        golang
+FROM        scratch
 MAINTAINER  Andrey Sibiryov <me@kobology.ru>
-RUN         go get github.com/kobolog/gorb
+
 EXPOSE      4672
-ENTRYPOINT  ["gorb"]
+
+COPY gorb   /gorb
+
+ENTRYPOINT  ["/gorb"]
