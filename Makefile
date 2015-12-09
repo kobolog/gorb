@@ -4,7 +4,7 @@ all: push
 TAG = 0.0
 PREFIX = kobolog/gorb
 
-binary: main.go
+binary:
 	CGO_ENABLED=0 GOOS=linux godep go build -a -ldflags '-w' -o docker/gorb
 
 container: binary
