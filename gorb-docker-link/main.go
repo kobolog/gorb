@@ -192,6 +192,10 @@ func invokeFunc(vs, rs string, ports []gdc.APIPort, fn portAction) []error {
 				}
 		},rs), binding.PrivatePort, binding.Type)
 
+		// There must be leading slash in the swarm event stream for node names that needs
+		// to be trimmed now that it has been munged
+		rsID = strings.Trim(rsID,"-")
+
 		if err := fn(vsID, rsID, binding); err == nil {
 			n++
 		} else {
