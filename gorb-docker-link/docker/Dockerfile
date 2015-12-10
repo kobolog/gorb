@@ -1,4 +1,6 @@
-FROM        golang
+FROM        scratch
 MAINTAINER  Andrey Sibiryov <me@kobology.ru>
-RUN         go get github.com/kobolog/gorb/gorb-docker-link
-ENTRYPOINT  ["gorb-docker-link"]
+
+COPY gorb-docker-link   /gorb-docker-link
+
+ENTRYPOINT  ["/gorb-docker-link"]
