@@ -14,4 +14,4 @@ push: container
 	docker push $(PREFIX):$(TAG)
 
 clean:
-	rm -f /docker/gorb-docker-link
+	rm -f docker/gorb-docker-link
