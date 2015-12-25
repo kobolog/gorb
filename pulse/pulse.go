@@ -96,7 +96,7 @@ func (p *Pulse) Loop(id ID, pulseCh chan Update) {
 		// TODO(@kobolog): Add exponential back-offs, thresholds.
 		interval = p.interval
 
-		log.Debugf("current pulse for %s: %s", p.metrics.Status.String())
+		log.Debugf("current pulse for %s: %s", id, p.metrics.Status.String())
 	}
 }
 
