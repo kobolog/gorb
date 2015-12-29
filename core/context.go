@@ -93,6 +93,10 @@ func NewContext(options ContextOptions) (*Context, error) {
 	if len(options.Endpoints) > 0 {
 		// TODO(@kobolog): Bind virtual services on multiple endpoints.
 		ctx.endpoint = options.Endpoints[0]
+		if options.ListenPort != 0 {
+			log.Info("Registered the REST service to Consul.")
+			ctx.disco.Expose("gorb", ctx.endpoint.String(), options.ListenPort)
+		}
 	}
 
 	if err := ctx.ipvs.Init(); err != nil {
