@@ -22,6 +22,7 @@ package main
 
 import (
 	"flag"
+	"net"
 	"net/http"
 	"os"
 
@@ -59,10 +60,18 @@ func main() {
 		log.Fatalf("error while obtaining interface addresses: %s", err)
 	}
 
+	tcpAddr, err := net.ResolveTCPAddr("tcp", *listen)
+	port := uint16(0)
+	if err != nil {
+		log.Fatalf("error while obtaining listening port from (%s): %s", *listen, err)
+	} else {
+		port = uint16(tcpAddr.Port)
+	}
 	ctx, err := core.NewContext(core.ContextOptions{
-		Disco:     *consul,
-		Endpoints: hostIPs,
-		Flush:     *flush})
+		Disco:      *consul,
+		Endpoints:  hostIPs,
+		Flush:      *flush,
+		ListenPort: port})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)
