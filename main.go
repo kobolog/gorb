@@ -30,6 +30,7 @@ import (
 	"github.com/kobolog/gorb/util"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -67,6 +68,7 @@ func main() {
 	} else {
 		port = uint16(tcpAddr.Port)
 	}
+
 	ctx, err := core.NewContext(core.ContextOptions{
 		Disco:      *consul,
 		Endpoints:  hostIPs,
@@ -82,6 +84,7 @@ func main() {
 
 	r := mux.NewRouter()
 
+	r.Handle("/metrics", prometheus.Handler()).Methods("GET")
 	r.Handle("/service/{vsID}", serviceCreateHandler{ctx}).Methods("PUT")
 	r.Handle("/service/{vsID}/{rsID}", backendCreateHandler{ctx}).Methods("PUT")
 	r.Handle("/service/{vsID}/{rsID}", backendUpdateHandler{ctx}).Methods("PATCH")

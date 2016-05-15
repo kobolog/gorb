@@ -166,6 +166,8 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 		log.Errorf("error while exposing service to Disco: %s", err)
 	}
 
+	go StartLBMetric(ctx, vsID)
+
 	return nil
 }
 
@@ -220,6 +222,8 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 
 	// Fire off the configured pulse goroutine, attach it to the Context.
 	go ctx.backends[rsID].monitor.Loop(pulse.ID{VsID: vsID, RsID: rsID}, ctx.pulseCh)
+
+	go StartBackendMetric(ctx, vsID, rsID)
 
 	return nil
 }
@@ -303,6 +307,8 @@ func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 		log.Errorf("error while removing service from Disco: %s", err)
 	}
 
+	StopLBMetric(ctx, vsID)
+
 	return vs.options, nil
 }
 
@@ -332,6 +338,8 @@ func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
 		log.Errorf("error while removing backend [%s/%s]", vsID, rsID)
 		return nil, ErrIpvsSyscallFailed
 	}
+
+	StopBackendMetric(ctx, vsID, rsID)
 
 	delete(ctx.backends, rsID)
 
@@ -367,6 +375,7 @@ func (ctx *Context) GetService(vsID string) (*ServiceInfo, error) {
 
 		result.Backends = append(result.Backends, rsID)
 		result.Health += backend.metrics.Health
+
 	}
 
 	if len(result.Backends) == 0 {
