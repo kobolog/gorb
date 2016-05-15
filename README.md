@@ -64,11 +64,11 @@ For more information and various configuration options description, consult [`ma
 Gorb exposes Prometheus consumable metrics on http://<listening-IP>:4672/metrics
 
 ### Available timeseries
-* gorb_lbs_health
-* gorb_lbs_backends_health
-* gorb_lbs_backends_number
-* gorb_lbs_backends_weight
-* gorb_lbs_backends_status
+* gorb_lbs_health - service health from 0 to 1
+* gorb_lbs_backends_health - backends health from 0 to 1
+* gorb_lbs_backends_number - number of backends per service
+* gorb_lbs_backends_weight - backends weight from 0 to 100
+* gorb_lbs_backends_status - 0 alive, 1 dead
 
 ### Example
 ```sh
