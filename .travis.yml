@@ -13,6 +13,7 @@ install:
   - go get github.com/sirupsen/logrus
   - go get github.com/tehnerd/gnl2go
   - go get github.com/fsouza/go-dockerclient
+  - go get github.com/prometheus/client_golang/prometheus
 
 script:
   - ./.travis/script.sh . core disco pulse util gorb-docker-link
