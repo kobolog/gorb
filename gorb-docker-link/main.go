@@ -34,8 +34,8 @@ import (
 	"github.com/kobolog/gorb/pulse"
 	"github.com/kobolog/gorb/util"
 
+	log "github.com/Sirupsen/logrus"
 	gdc "github.com/fsouza/go-dockerclient"
-	log "github.com/sirupsen/logrus"
 )
 
 var (

@@ -23,7 +23,7 @@ package core
 import (
 	"github.com/kobolog/gorb/pulse"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 )
 
 func (ctx *Context) notificationLoop() {

@@ -29,9 +29,9 @@ import (
 	"github.com/kobolog/gorb/core"
 	"github.com/kobolog/gorb/util"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
 )
 
 var (
