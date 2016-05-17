@@ -60,8 +60,8 @@ var (
 		Name:      "lbs_backends_health",
 		Help:      "load balancers backends health",
 	}, []string{"lb_name", "backend_name", "host", "port", "method"})
-	lbChannelMap      = make(map[string]chan int)
-	backendChannelMap = make(map[string]chan int)
+	lbChannelMap      = make(map[string]chan struct{})
+	backendChannelMap = make(map[string]chan struct{})
 )
 
 // Prometheus time series
@@ -74,7 +74,7 @@ func init() {
 }
 
 func StartLBMetric(ctx *Context, vsID string) {
-	lbChannelMap[vsID] = make(chan int)
+	lbChannelMap[vsID] = make(chan struct{})
 	for {
 		select {
 		case _ = <-lbChannelMap[vsID]:
@@ -92,7 +92,7 @@ func StartLBMetric(ctx *Context, vsID string) {
 }
 
 func StartBackendMetric(ctx *Context, vsID, rsID string) {
-	backendChannelMap[rsID] = make(chan int)
+	backendChannelMap[rsID] = make(chan struct{})
 	rs, exists := ctx.backends[rsID]
 	if !exists {
 		log.Errorf("Error retrieving backend %s", rsID)
@@ -124,7 +124,7 @@ func StopLBMetric(ctx *Context, vsID string) {
 		log.Errorf("Error retrieving service %s: %s", vsID, err)
 	} else {
 		if ch, found := lbChannelMap[vsID]; found {
-			ch <- 0
+			ch <- struct{}{}
 			delete(lbChannelMap, vsID)
 			lbHealth.Delete(prometheus.Labels{"lb_name": vsID, "host": service.Options.Host, "port": fmt.Sprintf("%v", service.Options.Port), "method": service.Options.Method, "protocol": service.Options.Protocol, "persistent": strconv.FormatBool(service.Options.Persistent)})
 		} else {
@@ -139,7 +139,7 @@ func StopBackendMetric(ctx *Context, vsID, rsID string) {
 		log.Errorf("Error retrieving backend %s", rsID)
 	} else {
 		if ch, found := backendChannelMap[rsID]; found {
-			ch <- 0
+			ch <- struct{}{}
 			delete(backendChannelMap, rsID)
 			backendNumber.WithLabelValues(vsID, rs.service.options.Host, fmt.Sprintf("%v", rs.service.options.Port), rs.service.options.Method).Dec()
 			backendHealth.Delete(prometheus.Labels{"lb_name": vsID, "backend_name": rsID, "host": rs.options.Host, "port": fmt.Sprintf("%v", rs.options.Port), "method": rs.options.Method})
