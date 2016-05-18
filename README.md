@@ -55,8 +55,46 @@ address automatically based on the configured default device:
 - `DELETE /service/<service>/<backend>` removes the specified backend from the virtual service.
 - `GET /service/<service>` returns virtual service configuration.
 - `GET /service/<service>/<backend>` returns backend configuration and its health check metrics.
+- `PATCH /service/<service>` updates virtual service configuration.
+- `PATCH /service/<service>/<backend>` updates backend configuration.
 
 For more information and various configuration options description, consult [`man 8 ipvsadm`](http://linux.die.net/man/8/ipvsadm).
+
+## Monitoring
+Gorb exposes Prometheus consumable metrics on http://<listening-IP>:4672/metrics
+
+### Available timeseries
+* gorb_lbs_health - service health from 0 to 1
+* gorb_lbs_backends_health - backends health from 0 to 1
+* gorb_lbs_backends_number - number of backends per service
+* gorb_lbs_backends_weight - backends weight from 0 to 100
+* gorb_lbs_backends_status - 0 alive, 1 dead
+
+### Example
+```sh
+curl http://gorb:4672/metrics |grep gorb_lbs
+...
+gorb_lbs_health{host="",lb_name="nginx-443",method="wlc",persistent="true",port="443",protocol="tcp"} 0.5
+gorb_lbs_health{host="",lb_name="nginx-80",method="wlc",persistent="true",port="443",protocol="tcp"} 1
+...
+gorb_lbs_backends_number{host="",lb_name="nginx-443",method="wlc",port="443"} 2
+gorb_lbs_backends_number{host="",lb_name="nginx-80",method="wlc",port="443"} 2
+...
+gorb_lbs_backends_health{backend_name="10.0.0.4-443",host="10.0.0.4",lb_name="nginx-443",method="nat",port="443"} 1
+gorb_lbs_backends_health{backend_name="10.0.128.2-443",host="10.0.128.2",lb_name="nginx-443",method="nat",port="443"} 0
+gorb_lbs_backends_health{backend_name="10.0.160.2-80",host="10.0.160.2",lb_name="nginx-80",method="nat",port="80"} 1
+gorb_lbs_backends_health{backend_name="10.0.32.2-80",host="10.0.32.2",lb_name="nginx-80",method="nat",port="80"} 1
+...
+gorb_lbs_backends_status{backend_name="10.0.0.4-443",host="10.0.0.4",lb_name="nginx-443",method="nat",port="443"} 0
+gorb_lbs_backends_status{backend_name="10.0.128.2-443",host="10.0.128.2",lb_name="nginx-443",method="nat",port="443"} 1
+gorb_lbs_backends_status{backend_name="10.0.160.2-80",host="10.0.160.2",lb_name="nginx-80",method="nat",port="80"} 0
+gorb_lbs_backends_status{backend_name="10.0.32.2-80",host="10.0.32.2",lb_name="nginx-80",method="nat",port="80"} 0
+...
+gorb_lbs_backends_weight{backend_name="10.0.0.4-443",host="10.0.0.4",lb_name="nginx.crisidev.org-443",method="nat",port="443"} 100
+gorb_lbs_backends_weight{backend_name="10.0.128.2-443",host="10.0.128.2",lb_name="nginx.crisidev.org-443",method="nat",port="443"} 0
+gorb_lbs_backends_weight{backend_name="10.0.160.2-80",host="10.0.160.2",lb_name="nginx.crisidev.org-80",method="nat",port="80"} 50
+gorb_lbs_backends_weight{backend_name="10.0.32.2-80",host="10.0.32.2",lb_name="nginx.crisidev.org-80",method="nat",port="80"} 50
+```
 
 ## TODO
 
@@ -67,3 +105,4 @@ For more information and various configuration options description, consult [`ma
 - [ ] Add BGP host-route announces, so that multiple GORBs could expose a service on the same IP across the cluster.
 - [ ] Add some primitive UI to present the same action palette but in an user-friendly fashion.
 - [ ] Replace command line options with proper configuration via a JSON/YAML/TOML file.
+- [x] Add monitoring
