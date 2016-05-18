@@ -23,6 +23,7 @@ package core
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -62,6 +63,8 @@ var (
 	}, []string{"lb_name", "backend_name", "host", "port", "method"})
 	lbChannelMap      = make(map[string]chan struct{})
 	backendChannelMap = make(map[string]chan struct{})
+	lbMutex           = sync.RWMutex{}
+	backendMutex      = sync.RWMutex{}
 )
 
 // Prometheus time series
@@ -74,7 +77,10 @@ func init() {
 }
 
 func StartLBMetric(ctx *Context, vsID string) {
+	lbMutex.Lock()
 	lbChannelMap[vsID] = make(chan struct{})
+	lbMutex.Unlock()
+	log.Infof("started service metrics exporter for %s", vsID)
 	for {
 		select {
 		case _ = <-lbChannelMap[vsID]:
@@ -92,12 +98,18 @@ func StartLBMetric(ctx *Context, vsID string) {
 }
 
 func StartBackendMetric(ctx *Context, vsID, rsID string) {
+	backendMutex.Lock()
 	backendChannelMap[rsID] = make(chan struct{})
+	backendMutex.Unlock()
+	ctx.mutex.RLock()
 	rs, exists := ctx.backends[rsID]
 	if !exists {
 		log.Errorf("Error retrieving backend %s", rsID)
+		ctx.mutex.RUnlock()
 	} else {
 		backendNumber.WithLabelValues(vsID, rs.service.options.Host, fmt.Sprintf("%v", rs.service.options.Port), rs.service.options.Method).Inc()
+		ctx.mutex.RUnlock()
+		log.Infof("started backend metrics exporter for %s", rsID)
 		for {
 			select {
 			case _ = <-backendChannelMap[rsID]:
@@ -119,6 +131,8 @@ func StartBackendMetric(ctx *Context, vsID, rsID string) {
 }
 
 func StopLBMetric(ctx *Context, vsID string) {
+	lbMutex.Lock()
+	defer lbMutex.Unlock()
 	service, err := ctx.GetService(vsID)
 	if err != nil {
 		log.Errorf("Error retrieving service %s: %s", vsID, err)
@@ -131,9 +145,14 @@ func StopLBMetric(ctx *Context, vsID string) {
 			log.Errorf("%s not found inside lbChannelMap keys", vsID)
 		}
 	}
+	log.Infof("stopped service metrics exporter for %s", vsID)
 }
 
 func StopBackendMetric(ctx *Context, vsID, rsID string) {
+	backendMutex.Lock()
+	defer backendMutex.Unlock()
+	ctx.mutex.RLock()
+	defer ctx.mutex.RUnlock()
 	rs, exists := ctx.backends[rsID]
 	if !exists {
 		log.Errorf("Error retrieving backend %s", rsID)
@@ -149,4 +168,5 @@ func StopBackendMetric(ctx *Context, vsID, rsID string) {
 			log.Errorf("%s not found inside backendChannelMap keys", rsID)
 		}
 	}
+	log.Infof("stopped backend metrics exporter for %s", rsID)
 }
