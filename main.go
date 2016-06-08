@@ -29,8 +29,8 @@ import (
 	"github.com/kobolog/gorb/core"
 	"github.com/kobolog/gorb/util"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 )
 
 var (

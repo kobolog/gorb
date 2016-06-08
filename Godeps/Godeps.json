@@ -30,7 +30,7 @@
 			"Rev": "d8ed2627bdf02c080bf22230dbb337003b7aba2d"
 		},
 		{
-			"ImportPath": "github.com/sirupsen/logrus",
+			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.8.7-47-ga22723f",
 			"Rev": "a22723f16efea2e89b7bd67d10ed077c47c14eb4"
 		},

@@ -29,7 +29,7 @@ import (
 	"github.com/kobolog/gorb/pulse"
 	"github.com/kobolog/gorb/util"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"github.com/tehnerd/gnl2go"
 )
 
