@@ -62,13 +62,6 @@ func TestMustMarshall(t *testing.T) {
 	}
 }
 
-func TestMustMarshalPanic(t *testing.T) {
-	assert.Panics(t, func() {
-		// Map key type is not string.
-		MustMarshal(map[int]int{}, JSONOptions{})
-	})
-}
-
 func TestAddrFamily(t *testing.T) {
 	tests := []struct {
 		in net.IP
