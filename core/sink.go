@@ -29,49 +29,56 @@ import (
 func (ctx *Context) notificationLoop() {
 	stash := make(map[pulse.ID]int32)
 
-	for u := range ctx.pulseCh {
-		vsID, rsID := u.Source.VsID, u.Source.RsID
+	for {
+		select {
+		case u := <-ctx.pulseCh:
+			vsID, rsID := u.Source.VsID, u.Source.RsID
 
-		ctx.mutex.Lock()
+			ctx.mutex.Lock()
 
-		if ctx.backends[rsID].metrics.Status != u.Metrics.Status {
-			log.Warnf("backend %s status: %s", u.Source, u.Metrics.Status)
-		}
-
-		// This is a copy of metrics structure from Pulse.
-		ctx.backends[rsID].metrics = u.Metrics
-
-		ctx.mutex.Unlock()
-
-		switch u.Metrics.Status {
-		case pulse.StatusUp:
-			// Weight is gonna be stashed until the backend is recovered.
-			weight, exists := stash[u.Source]
-
-			if !exists {
-				continue
+			if ctx.backends[rsID].metrics.Status != u.Metrics.Status {
+				log.Warnf("backend %s status: %s", u.Source, u.Metrics.Status)
 			}
 
-			// Calculate a relative weight considering backend's health.
-			weight = int32(float64(weight) * u.Metrics.Health)
+			// This is a copy of metrics structure from Pulse.
+			ctx.backends[rsID].metrics = u.Metrics
 
-			if _, err := ctx.UpdateBackend(vsID, rsID, weight); err != nil {
-				log.Errorf("error while unstashing a backend: %s", err)
-			} else if weight == stash[u.Source] {
-				// This means that the backend has completely recovered.
-				delete(stash, u.Source)
-			}
+			ctx.mutex.Unlock()
 
-		case pulse.StatusDown:
-			if _, exists := stash[u.Source]; exists {
-				continue
-			}
+			switch u.Metrics.Status {
+			case pulse.StatusUp:
+				// Weight is gonna be stashed until the backend is recovered.
+				weight, exists := stash[u.Source]
 
-			if weight, err := ctx.UpdateBackend(vsID, rsID, 0); err != nil {
-				log.Errorf("error while stashing a backend: %s", err)
-			} else {
-				stash[u.Source] = weight
+				if !exists {
+					continue
+				}
+
+				// Calculate a relative weight considering backend's health.
+				weight = int32(float64(weight) * u.Metrics.Health)
+
+				if _, err := ctx.UpdateBackend(vsID, rsID, weight); err != nil {
+					log.Errorf("error while unstashing a backend: %s", err)
+				} else if weight == stash[u.Source] {
+					// This means that the backend has completely recovered.
+					delete(stash, u.Source)
+				}
+
+			case pulse.StatusDown:
+				if _, exists := stash[u.Source]; exists {
+					continue
+				}
+
+				if weight, err := ctx.UpdateBackend(vsID, rsID, 0); err != nil {
+					log.Errorf("error while stashing a backend: %s", err)
+				} else {
+					stash[u.Source] = weight
+				}
 			}
+		case <-ctx.stopCh:
+			log.Debug("notificationLoop has been stopped")
+			return
 		}
 	}
+
 }

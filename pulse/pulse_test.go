@@ -122,7 +122,7 @@ func TestPulseChannel(t *testing.T) {
 	bp, err := New("", 0, &Options{Type: "none", Interval: "1s"})
 	require.NoError(t, err)
 
-	go bp.Loop(id, pulseCh)
+	go bp.Loop(id, pulseCh, make(chan struct{}))
 	defer bp.Stop()
 
 	update := <-pulseCh
@@ -148,7 +148,7 @@ func TestPulseStop(t *testing.T) {
 
 	wg.Add(1)
 	go func() {
-		bp.Loop(ID{"VsID", "rsID"}, pulseCh)
+		bp.Loop(ID{"VsID", "rsID"}, pulseCh, make(chan struct{}))
 		wg.Done()
 	}()
 

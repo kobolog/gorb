@@ -64,7 +64,7 @@ func New(host string, port uint16, opts *Options) (*Pulse, error) {
 		return nil, err
 	}
 
-	stopCh := make(chan struct{}, 1)
+	stopCh := make(chan struct{})
 
 	return &Pulse{d, opts.interval, stopCh, NewMetrics()}, nil
 }
@@ -76,7 +76,7 @@ type Update struct {
 }
 
 // Loop starts the Pulse.
-func (p *Pulse) Loop(id ID, pulseCh chan Update) {
+func (p *Pulse) Loop(id ID, pulseCh chan Update, consumerStopCh <-chan struct{}) {
 	log.Infof("starting pulse for %s", id)
 
 	// Randomize the first health-check to avoid thundering herd syndrome.
@@ -85,9 +85,12 @@ func (p *Pulse) Loop(id ID, pulseCh chan Update) {
 	for {
 		select {
 		case <-time.After(interval):
+			select {
 			// Recalculate metrics and statistics and send them to Context.
-			pulseCh <- Update{id, p.metrics.Update(p.driver.Check())}
-
+			case pulseCh <- Update{id, p.metrics.Update(p.driver.Check())}:
+			case <-consumerStopCh:
+				// prevent blocking if the consumer stops before us
+			}
 		case <-p.stopCh:
 			log.Infof("stopping pulse for %s", id)
 			return
@@ -102,5 +105,5 @@ func (p *Pulse) Loop(id ID, pulseCh chan Update) {
 
 // Stop stops the Pulse.
 func (p *Pulse) Stop() {
-	p.stopCh <- struct{}{}
+	close(p.stopCh)
 }
