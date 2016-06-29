@@ -127,6 +127,18 @@ func (h backendRemoveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+type serviceListHandler struct {
+	ctx *core.Context
+}
+
+func (h serviceListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if list, err := h.ctx.ListServices(); err != nil {
+		writeError(w, err)
+	} else {
+		w.Write(util.MustMarshal(list, util.JSONOptions{Indent: true}))
+	}
+}
+
 type serviceStatusHandler struct {
 	ctx *core.Context
 }
