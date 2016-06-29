@@ -340,6 +340,20 @@ func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
 	return rs.options, nil
 }
 
+// ListServices returns a list of all registered services.
+func (ctx *Context) ListServices() ([]string, error) {
+	ctx.mutex.RLock()
+	defer ctx.mutex.RUnlock()
+
+	r := make([]string, 0, len(ctx.services))
+
+	for vsID := range ctx.services {
+		r = append(r, vsID)
+	}
+
+	return r, nil
+}
+
 // ServiceInfo contains information about virtual service options,
 // its backends and overall virtual service health.
 type ServiceInfo struct {

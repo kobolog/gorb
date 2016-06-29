@@ -87,6 +87,7 @@ func main() {
 	r.Handle("/service/{vsID}/{rsID}", backendUpdateHandler{ctx}).Methods("PATCH")
 	r.Handle("/service/{vsID}", serviceRemoveHandler{ctx}).Methods("DELETE")
 	r.Handle("/service/{vsID}/{rsID}", backendRemoveHandler{ctx}).Methods("DELETE")
+	r.Handle("/service", serviceListHandler{ctx}).Methods("GET")
 	r.Handle("/service/{vsID}", serviceStatusHandler{ctx}).Methods("GET")
 	r.Handle("/service/{vsID}/{rsID}", backendStatusHandler{ctx}).Methods("GET")
 
