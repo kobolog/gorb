@@ -6,6 +6,9 @@ go:
   - 1.6
   - tip
 
+install:
+  - go get -t ./...
+
 script:
   - ./.travis/script.sh . core disco pulse util gorb-docker-link
 
