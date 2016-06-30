@@ -1,0 +1,6 @@
+package: github.com/kobolog/gorb
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/fsouza/go-dockerclient
+- package: github.com/gorilla/mux
+- package: github.com/tehnerd/gnl2go

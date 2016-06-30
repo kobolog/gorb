@@ -3,8 +3,7 @@
 #### About:
 This is go based lib to work with generic netlink socket's.
 The lib was writen under heave influenc of FB's gnlpy
-(i'd even say that i've complitly riped (translated from py to go) off their code base;
-so all kudos goes to FB's team (@alexgartrell and co(took from comments:)) and all the blame to me)
+(so all kudos goes to FB's team  and all the blame to me)
 
 
 in gnl2go.go you can find generic routines to work with gnetlink

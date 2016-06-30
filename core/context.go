@@ -116,7 +116,7 @@ func NewContext(options ContextOptions) (*Context, error) {
 	}
 
 	// Fire off a pulse notifications sink goroutine.
-	go ctx.notificationLoop()
+	go ctx.run()
 
 	return ctx, nil
 }

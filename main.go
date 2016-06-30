@@ -56,22 +56,25 @@ func main() {
 	}
 
 	hostIPs, err := util.InterfaceIPs(*device)
+
 	if err != nil {
 		log.Fatalf("error while obtaining interface addresses: %s", err)
 	}
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", *listen)
-	port := uint16(0)
+	listenAddr, err := net.ResolveTCPAddr("tcp", *listen)
+	listenPort := uint16(0)
+
 	if err != nil {
-		log.Fatalf("error while obtaining listening port from (%s): %s", *listen, err)
+		log.Fatalf("error while obtaining listening port from '%s': %s", *listen, err)
 	} else {
-		port = uint16(tcpAddr.Port)
+		listenPort = uint16(listenAddr.Port)
 	}
+
 	ctx, err := core.NewContext(core.ContextOptions{
 		Disco:      *consul,
 		Endpoints:  hostIPs,
 		Flush:      *flush,
-		ListenPort: port})
+		ListenPort: listenPort})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)

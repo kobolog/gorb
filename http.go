@@ -34,8 +34,13 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
+func writeJSON(w http.ResponseWriter, obj interface{}) {
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(util.MustMarshal(obj, util.JSONOptions{Indent: true}))
+}
+
 func writeError(w http.ResponseWriter, err error) {
-	code := http.StatusOK
+	var code int
 
 	switch err {
 	case core.ErrIpvsSyscallFailed:
@@ -48,6 +53,7 @@ func writeError(w http.ResponseWriter, err error) {
 		code = http.StatusBadRequest
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(util.MustMarshal(&errorResponse{err.Error()}, util.JSONOptions{Indent: true}))
 }
@@ -135,7 +141,7 @@ func (h serviceListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if list, err := h.ctx.ListServices(); err != nil {
 		writeError(w, err)
 	} else {
-		w.Write(util.MustMarshal(list, util.JSONOptions{Indent: true}))
+		writeJSON(w, list)
 	}
 }
 
@@ -149,7 +155,7 @@ func (h serviceStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	if opts, err := h.ctx.GetService(vars["vsID"]); err != nil {
 		writeError(w, err)
 	} else {
-		w.Write(util.MustMarshal(opts, util.JSONOptions{Indent: true}))
+		writeJSON(w, opts)
 	}
 }
 
@@ -163,6 +169,6 @@ func (h backendStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	if opts, err := h.ctx.GetBackend(vars["vsID"], vars["rsID"]); err != nil {
 		writeError(w, err)
 	} else {
-		w.Write(util.MustMarshal(opts, util.JSONOptions{Indent: true}))
+		writeJSON(w, opts)
 	}
 }

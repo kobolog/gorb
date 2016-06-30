@@ -30,7 +30,6 @@ func IPv4ToUint32(ipv4 string) (uint32, error) {
 func Uint32IPv4ToString(ipv4 uint32) string {
 	ipv4addr := ""
 	octet := 0
-
 	for cntr := 0; cntr < 4; cntr++ {
 		octet = int((ipv4 >> ((3 - uint(cntr)) * 8)) & 255)
 		if cntr == 0 {

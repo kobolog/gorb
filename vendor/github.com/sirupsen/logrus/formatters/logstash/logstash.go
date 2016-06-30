@@ -17,38 +17,45 @@ type LogstashFormatter struct {
 }
 
 func (f *LogstashFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	entry.Data["@version"] = 1
-
-	if f.TimestampFormat == "" {
-		f.TimestampFormat = logrus.DefaultTimestampFormat
+	fields := make(logrus.Fields)
+	for k, v := range entry.Data {
+		fields[k] = v
 	}
 
-	entry.Data["@timestamp"] = entry.Time.Format(f.TimestampFormat)
+	fields["@version"] = 1
+
+	timeStampFormat := f.TimestampFormat
+
+	if timeStampFormat == "" {
+		timeStampFormat = logrus.DefaultTimestampFormat
+	}
+
+	fields["@timestamp"] = entry.Time.Format(timeStampFormat)
 
 	// set message field
 	v, ok := entry.Data["message"]
 	if ok {
-		entry.Data["fields.message"] = v
+		fields["fields.message"] = v
 	}
-	entry.Data["message"] = entry.Message
+	fields["message"] = entry.Message
 
 	// set level field
 	v, ok = entry.Data["level"]
 	if ok {
-		entry.Data["fields.level"] = v
+		fields["fields.level"] = v
 	}
-	entry.Data["level"] = entry.Level.String()
+	fields["level"] = entry.Level.String()
 
 	// set type field
 	if f.Type != "" {
 		v, ok = entry.Data["type"]
 		if ok {
-			entry.Data["fields.type"] = v
+			fields["fields.type"] = v
 		}
-		entry.Data["type"] = f.Type
+		fields["type"] = f.Type
 	}
 
-	serialized, err := json.Marshal(entry.Data)
+	serialized, err := json.Marshal(fields)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to marshal fields to JSON, %v", err)
 	}

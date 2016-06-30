@@ -339,11 +339,15 @@ func (it *IgnoreType) Val() {
 type BinaryType []byte
 
 func (bt *BinaryType) Serialize() ([]byte, error) {
-	return []byte(*bt), nil
+	byte_slice := make([]byte, 0)
+	byte_slice = append(byte_slice, []byte(*bt)...)
+	return byte_slice, nil
 }
 
 func (bt *BinaryType) Deserialize(buf []byte) error {
-	*bt = BinaryType(buf)
+	byte_slice := make([]byte, 0)
+	byte_slice = append(byte_slice, buf...)
+	*bt = BinaryType(byte_slice)
 	return nil
 }
 
@@ -875,7 +879,6 @@ func (nlSock *NLSocket) recv() ([]GNLMessage, error) {
 			msgsList = append(msgsList, rmsg)
 			resp = data
 		}
-
 	}
 	return msgsList, nil
 }

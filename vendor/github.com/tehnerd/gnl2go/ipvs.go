@@ -60,6 +60,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -67,6 +68,31 @@ import (
 const (
 	IPVS_MASQUERADING = 0
 	IPVS_TUNNELING    = 2
+)
+
+const (
+	NO_FLAGS               = 0x0    /* no flags */
+	IP_VS_SVC_F_PERSISTENT = 0x0001 /* persistent port */
+	IP_VS_SVC_F_HASHED     = 0x0002 /* hashed entry */
+	IP_VS_SVC_F_ONEPACKET  = 0x0004 /* one-packet scheduling */
+	IP_VS_SVC_F_SCHED1     = 0x0008 /* scheduler flag 1 */
+	IP_VS_SVC_F_SCHED2     = 0x0010 /* scheduler flag 2 */
+	IP_VS_SVC_F_SCHED3     = 0x0020 /* scheduler flag 3 */
+
+	IP_VS_SVC_F_SCHED_SH_FALLBACK = IP_VS_SVC_F_SCHED1
+	IP_VS_SVC_F_SCHED_SH_PORT     = IP_VS_SVC_F_SCHED2
+)
+
+var (
+	BIN_NO_FLAGS                      = []byte{0, 0, 0, 0, 0, 0, 0, 0}        /* no flags */
+	BIN_IP_VS_SVC_F_PERSISTENT        = U32ToBinFlags(IP_VS_SVC_F_PERSISTENT) /* persistent port */
+	BIN_IP_VS_SVC_F_HASHED            = U32ToBinFlags(IP_VS_SVC_F_HASHED)     /* hashed entry */
+	BIN_IP_VS_SVC_F_ONEPACKET         = U32ToBinFlags(IP_VS_SVC_F_ONEPACKET)  /* one-packet scheduling */
+	BIN_IP_VS_SVC_F_SCHED1            = U32ToBinFlags(IP_VS_SVC_F_SCHED1)     /* scheduler flag 1 */
+	BIN_IP_VS_SVC_F_SCHED2            = U32ToBinFlags(IP_VS_SVC_F_SCHED2)     /* scheduler flag 2 */
+	BIN_IP_VS_SVC_F_SCHED3            = U32ToBinFlags(IP_VS_SVC_F_SCHED3)     /* scheduler flag 3 */
+	BIN_IP_VS_SVC_F_SCHED_SH_FALLBACK = BIN_IP_VS_SVC_F_SCHED1
+	BIN_IP_VS_SVC_F_SCHED_SH_PORT     = BIN_IP_VS_SVC_F_SCHED2
 )
 
 var (
@@ -84,6 +110,20 @@ var (
 			AttrTuple{Name: "OUTBPS", Type: "U32Type"},
 		})
 
+	IpvsStats64AttrList = CreateAttrListDefinition("IpvsStats64AttrList",
+		[]AttrTuple{
+			AttrTuple{Name: "CONNS", Type: "U64Type"},
+			AttrTuple{Name: "INPKTS", Type: "U64Type"},
+			AttrTuple{Name: "OUTPKTS", Type: "U64Type"},
+			AttrTuple{Name: "INBYTES", Type: "U64Type"},
+			AttrTuple{Name: "OUTBYTES", Type: "U64Type"},
+			AttrTuple{Name: "CPS", Type: "U64Type"},
+			AttrTuple{Name: "INPPS", Type: "U64Type"},
+			AttrTuple{Name: "OUTPPS", Type: "U64Type"},
+			AttrTuple{Name: "INBPS", Type: "U64Type"},
+			AttrTuple{Name: "OUTBPS", Type: "U64Type"},
+		})
+
 	IpvsServiceAttrList = CreateAttrListDefinition("IpvsServiceAttrList",
 		[]AttrTuple{
 			AttrTuple{Name: "AF", Type: "U16Type"},
@@ -97,6 +137,7 @@ var (
 			AttrTuple{Name: "NETMASK", Type: "U32Type"},
 			AttrTuple{Name: "STATS", Type: "IpvsStatsAttrList"},
 			AttrTuple{Name: "PE_NAME", Type: "NulStringType"},
+			AttrTuple{Name: "STATS64", Type: "IpvsStats64AttrList"},
 		})
 
 	IpvsDestAttrList = CreateAttrListDefinition("IpvsDestAttrList",
@@ -112,6 +153,7 @@ var (
 			AttrTuple{Name: "PERSIST_CONNS", Type: "U32Type"},
 			AttrTuple{Name: "STATS", Type: "IpvsStatsAttrList"},
 			AttrTuple{Name: "ADDR_FAMILY", Type: "U16Type"},
+			AttrTuple{Name: "STATS64", Type: "IpvsStats64AttrList"},
 		})
 
 	IpvsDaemonAttrList = CreateAttrListDefinition("IpvsDaemonAttrList",
@@ -157,6 +199,21 @@ var (
 		AttrListTuple{Name: "FLUSH", AttrList: CreateAttrListType(IpvsCmdAttrList)},
 	}
 )
+
+func U32ToBinFlags(flags uint32) []byte {
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, flags)
+	if err != nil {
+		/* we dont wanna trow so will return all nulls */
+		return []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	}
+	encFlags := buf.Bytes()
+	/* this is helper function and was tested w/ current flags (as for 4.5)
+	   so mask will cover only first byte; as for now, there is no flags
+	   in subsequent */
+	encFlags = append(encFlags, []byte{255, 0, 0, 0}...)
+	return encFlags
+}
 
 func validateIp(ip string) bool {
 	for _, c := range ip {
@@ -217,7 +274,7 @@ func fromAFUnion(af uint16, addr []byte) (string, error) {
 		return addrStr, nil
 	}
 	var v4addr uint32
-	//we leftpadded addr to len 16 above,so our v4 addr in addr[12:]
+	//we leftpadded addr to len 16 above,so our v4 addr in addr[:4]
 	err := binary.Read(bytes.NewReader(addr[:4]), binary.BigEndian, &v4addr)
 	if err != nil {
 		return "", fmt.Errorf("cant decode ipv4 addr from net repr:%v\n", err)
@@ -321,11 +378,76 @@ func (s *Service) InitFromAttrList(list map[string]SerDes) error {
 	} else {
 		fw := list["FWMARK"].(*U32Type)
 		s.FWMark = uint32(*fw)
-
+		af := list["AF"].(*U16Type)
+		s.AF = uint16(*af)
 	}
 	sched := list["SCHED_NAME"].(*NulStringType)
 	s.Sched = string(*sched)
 	return nil
+}
+
+func (s *Service) CreateAttrList() (map[string]SerDes, error) {
+	attrList := make(map[string]SerDes)
+	if s.VIP != "" {
+		//this is not FW Mark based service
+		af, addr, err := toAFUnion(s.VIP)
+		if err != nil {
+			return nil, err
+		}
+		//1<<32-1
+		netmask := uint32(4294967295)
+		if af == syscall.AF_INET6 {
+			netmask = 128
+		}
+		AF := U16Type(af)
+		Port := Net16Type(s.Port)
+		Netmask := U32Type(netmask)
+		Addr := BinaryType(addr)
+		Proto := U16Type(s.Proto)
+		attrList["AF"] = &AF
+		attrList["PORT"] = &Port
+		attrList["PROTOCOL"] = &Proto
+		attrList["ADDR"] = &Addr
+		attrList["NETMASK"] = &Netmask
+	} else {
+		//FW Mark
+		FWMark := U32Type(s.FWMark)
+		AF := U16Type(s.AF)
+		attrList["FWMARK"] = &FWMark
+		attrList["AF"] = &AF
+	}
+	Sched := NulStringType(s.Sched)
+	attrList["SCHED_NAME"] = &Sched
+	return attrList, nil
+}
+
+func (s *Service) ToString() string {
+	if s.VIP != "" {
+		port := strconv.FormatUint(uint64(s.Port), 10)
+		proto := ""
+		switch s.Proto {
+		case syscall.IPPROTO_TCP:
+			proto = "tcp"
+		case syscall.IPPROTO_UDP:
+			proto = "udp"
+		default:
+			proto = "unknown"
+		}
+		return strings.Join([]string{s.VIP, proto, port}, ":")
+	} else {
+		//fwmark based service
+		fwmark := strconv.FormatUint(uint64(s.FWMark), 10)
+		proto := ""
+		switch s.AF {
+		case syscall.AF_INET:
+			proto = "ipv4"
+		case syscall.AF_INET6:
+			proto = "ipv6"
+		default:
+			proto = "unknown"
+		}
+		return strings.Join([]string{"fwmark", proto, fwmark}, ":")
+	}
 }
 
 type Pool struct {
@@ -335,6 +457,114 @@ type Pool struct {
 
 func (p *Pool) InitFromAttrList(list map[string]SerDes) {
 	//TODO(tehnerd):...
+}
+
+type StatsIntf interface {
+	GetStats() map[string]uint64
+}
+
+type Stats struct {
+	Conns    uint32
+	Inpkts   uint32
+	Outpkts  uint32
+	Inbytes  uint64
+	Outbytes uint64
+	Cps      uint32
+	Inpps    uint32
+	Outpps   uint32
+	Inbps    uint32
+	Outbps   uint32
+}
+
+func (stats *Stats) InitFromAttrList(list map[string]SerDes) {
+	//not tested
+	conns := list["CONNS"].(*U32Type)
+	inpkts := list["INPKTS"].(*U32Type)
+	outpkts := list["OUTPKTS"].(*U32Type)
+	inbytes := list["INBYTES"].(*U64Type)
+	outbytes := list["OUTBYTES"].(*U64Type)
+	cps := list["CPS"].(*U32Type)
+	inpps := list["INPPS"].(*U32Type)
+	outpps := list["OUTPPS"].(*U32Type)
+	inbps := list["INBPS"].(*U32Type)
+	outbps := list["OUTBPS"].(*U32Type)
+	stats.Conns = uint32(*conns)
+	stats.Inpkts = uint32(*inpkts)
+	stats.Outpps = uint32(*outpkts)
+	stats.Inbytes = uint64(*inbytes)
+	stats.Outbytes = uint64(*outbytes)
+	stats.Cps = uint32(*cps)
+	stats.Inpps = uint32(*inpps)
+	stats.Outpps = uint32(*outpps)
+	stats.Inbps = uint32(*inbps)
+	stats.Outbps = uint32(*outbps)
+}
+
+func (stats Stats) GetStats() map[string]uint64 {
+	statsMap := make(map[string]uint64)
+	statsMap["CONNS"] = uint64(stats.Conns)
+	statsMap["INPKTS"] = uint64(stats.Inpkts)
+	statsMap["OUTPKTS"] = uint64(stats.Outpkts)
+	statsMap["INBYTES"] = uint64(stats.Inbytes)
+	statsMap["OYTBYTES"] = uint64(stats.Outbytes)
+	statsMap["CPS"] = uint64(stats.Cps)
+	statsMap["INPPS"] = uint64(stats.Inpps)
+	statsMap["OUTPPS"] = uint64(stats.Outpps)
+	statsMap["INBPS"] = uint64(stats.Inbps)
+	statsMap["OUTBPS"] = uint64(stats.Outbps)
+	return statsMap
+}
+
+type Stats64 struct {
+	Conns    uint64
+	Inpkts   uint64
+	Outpkts  uint64
+	Inbytes  uint64
+	Outbytes uint64
+	Cps      uint64
+	Inpps    uint64
+	Outpps   uint64
+	Inbps    uint64
+	Outbps   uint64
+}
+
+func (stats *Stats64) InitFromAttrList(list map[string]SerDes) {
+	//not tested
+	conns := list["CONNS"].(*U64Type)
+	inpkts := list["INPKTS"].(*U64Type)
+	outpkts := list["OUTPKTS"].(*U64Type)
+	inbytes := list["INBYTES"].(*U64Type)
+	outbytes := list["OUTBYTES"].(*U64Type)
+	cps := list["CPS"].(*U64Type)
+	inpps := list["INPPS"].(*U64Type)
+	outpps := list["OUTPPS"].(*U64Type)
+	inbps := list["INBPS"].(*U64Type)
+	outbps := list["OUTBPS"].(*U64Type)
+	stats.Conns = uint64(*conns)
+	stats.Inpkts = uint64(*inpkts)
+	stats.Outpps = uint64(*outpkts)
+	stats.Inbytes = uint64(*inbytes)
+	stats.Outbytes = uint64(*outbytes)
+	stats.Cps = uint64(*cps)
+	stats.Inpps = uint64(*inpps)
+	stats.Outpps = uint64(*outpps)
+	stats.Inbps = uint64(*inbps)
+	stats.Outbps = uint64(*outbps)
+}
+
+func (stats Stats64) GetStats() map[string]uint64 {
+	statsMap := make(map[string]uint64)
+	statsMap["CONNS"] = stats.Conns
+	statsMap["INPKTS"] = stats.Inpkts
+	statsMap["OUTPKTS"] = stats.Outpkts
+	statsMap["INBYTES"] = stats.Inbytes
+	statsMap["OYTBYTES"] = stats.Outbytes
+	statsMap["CPS"] = stats.Cps
+	statsMap["INPPS"] = stats.Inpps
+	statsMap["OUTPPS"] = stats.Outpps
+	statsMap["INBPS"] = stats.Inbps
+	statsMap["OUTBPS"] = stats.Outbps
+	return statsMap
 }
 
 type IpvsClient struct {
@@ -364,6 +594,43 @@ func (ipvs *IpvsClient) Flush() error {
 	return nil
 }
 
+func (ipvs *IpvsClient) GetPoolForService(svc Service) (Pool, error) {
+	attrList, err := svc.CreateAttrList()
+	if err != nil {
+		return Pool{}, err
+	}
+	pool, err := ipvs.getPoolForAttrList(attrList)
+	return pool, err
+}
+
+func (ipvs *IpvsClient) getPoolForAttrList(
+	list map[string]SerDes) (Pool, error) {
+	var pool Pool
+	pool.Service.InitFromAttrList(list)
+	destReq, err := ipvs.mt.InitGNLMessageStr("GET_DEST", MATCH_ROOT_REQUEST)
+	if err != nil {
+		return pool, err
+	}
+	svcAttrListDef, _ := ATLName2ATL["IpvsServiceAttrList"]
+	svcAttrListType := CreateAttrListType(svcAttrListDef)
+	svcAttrListType.Set(list)
+	destReq.AttrMap["SERVICE"] = &svcAttrListType
+	destResps, err := ipvs.Sock.Query(destReq)
+	if err != nil {
+		return pool, err
+	}
+	for _, destResp := range destResps {
+		var d Dest
+		dstAttrList := destResp.GetAttrList("DEST")
+		d.AF = pool.Service.AF
+		if dstAttrList != nil {
+			d.InitFromAttrList(dstAttrList.(*AttrListType).Amap)
+			pool.Dests = append(pool.Dests, d)
+		}
+	}
+	return pool, nil
+}
+
 func (ipvs *IpvsClient) GetPools() ([]Pool, error) {
 	var pools []Pool
 	msg, err := ipvs.mt.InitGNLMessageStr("GET_SERVICE", MATCH_ROOT_REQUEST)
@@ -375,30 +642,50 @@ func (ipvs *IpvsClient) GetPools() ([]Pool, error) {
 		return nil, err
 	}
 	for _, resp := range resps {
-		var pool Pool
 		svcAttrList := resp.GetAttrList("SERVICE")
-		pool.Service.InitFromAttrList(svcAttrList.(*AttrListType).Amap)
-		destReq, err := ipvs.mt.InitGNLMessageStr("GET_DEST", MATCH_ROOT_REQUEST)
+		pool, err := ipvs.getPoolForAttrList(svcAttrList.(*AttrListType).Amap)
 		if err != nil {
 			return nil, err
-		}
-		destReq.AttrMap["SERVICE"] = svcAttrList.(*AttrListType)
-		destResps, err := ipvs.Sock.Query(destReq)
-		if err != nil {
-			return nil, err
-		}
-		for _, destResp := range destResps {
-			var d Dest
-			dstAttrList := destResp.GetAttrList("DEST")
-			d.AF = pool.Service.AF
-			if dstAttrList != nil {
-				d.InitFromAttrList(dstAttrList.(*AttrListType).Amap)
-				pool.Dests = append(pool.Dests, d)
-			}
 		}
 		pools = append(pools, pool)
 	}
 	return pools, nil
+}
+
+func GetStatsFromAttrList(attrList *AttrListType) StatsIntf {
+	if val, exists := attrList.Amap["STATS64"]; exists {
+		var sstats64 Stats64
+		sstats64.InitFromAttrList(val.(*AttrListType).Amap)
+		return sstats64
+	} else {
+		var sstats Stats
+		statsAttrList := attrList.Amap["STATS"]
+		sstats.InitFromAttrList(statsAttrList.(*AttrListType).Amap)
+		return sstats
+	}
+	//we should never reach this
+	panic("check GetStatsFromAttrList routine")
+	return nil
+}
+
+func (ipvs *IpvsClient) GetAllStatsBrief() (map[string]StatsIntf, error) {
+	statsMap := make(map[string]StatsIntf)
+	msg, err := ipvs.mt.InitGNLMessageStr("GET_SERVICE", MATCH_ROOT_REQUEST)
+	if err != nil {
+		return nil, err
+	}
+	resps, err := ipvs.Sock.Query(msg)
+	if err != nil {
+		return nil, err
+	}
+	for _, resp := range resps {
+		var svc Service
+		svcAttrList := resp.GetAttrList("SERVICE").(*AttrListType)
+		svc.InitFromAttrList(svcAttrList.Amap)
+		sstat := GetStatsFromAttrList(svcAttrList)
+		statsMap[svc.ToString()] = sstat
+	}
+	return statsMap, nil
 }
 
 func (ipvs *IpvsClient) modifyService(method string, vip string,
@@ -421,7 +708,6 @@ func (ipvs *IpvsClient) modifyService(method string, vip string,
 	Netmask := U32Type(netmask)
 	Addr := BinaryType(addr)
 	Proto := U16Type(protocol)
-	Flags := BinaryType([]byte{0, 0, 0, 0, 0, 0, 0, 0})
 	atl, _ := ATLName2ATL["IpvsServiceAttrList"]
 	sattr := CreateAttrListType(atl)
 	sattr.Amap["AF"] = &AF
@@ -429,7 +715,6 @@ func (ipvs *IpvsClient) modifyService(method string, vip string,
 	sattr.Amap["PROTOCOL"] = &Proto
 	sattr.Amap["ADDR"] = &Addr
 	sattr.Amap["NETMASK"] = &Netmask
-	sattr.Amap["FLAGS"] = &Flags
 	for k, v := range amap {
 		sattr.Amap[k] = v
 	}
@@ -443,9 +728,17 @@ func (ipvs *IpvsClient) modifyService(method string, vip string,
 
 func (ipvs *IpvsClient) AddService(vip string,
 	port uint16, protocol uint16, sched string) error {
+	return ipvs.AddServiceWithFlags(vip, port, protocol,
+		sched, BIN_NO_FLAGS)
+}
+
+func (ipvs *IpvsClient) AddServiceWithFlags(vip string,
+	port uint16, protocol uint16, sched string, flags []byte) error {
 	paramsMap := make(map[string]SerDes)
 	Sched := NulStringType(sched)
 	Timeout := U32Type(0)
+	Flags := BinaryType(flags)
+	paramsMap["FLAGS"] = &Flags
 	paramsMap["SCHED_NAME"] = &Sched
 	paramsMap["TIMEOUT"] = &Timeout
 	err := ipvs.modifyService("NEW_SERVICE", vip, port,
@@ -479,11 +772,9 @@ func (ipvs *IpvsClient) modifyFWMService(method string, fwmark uint32,
 		return err
 	}
 	Netmask := U32Type(netmask)
-	Flags := BinaryType([]byte{0, 0, 0, 0, 0, 0, 0, 0})
 	atl, _ := ATLName2ATL["IpvsServiceAttrList"]
 	sattr := CreateAttrListType(atl)
 	sattr.Amap["FWMARK"] = &FWMark
-	sattr.Amap["FLAGS"] = &Flags
 	sattr.Amap["AF"] = &AF
 	sattr.Amap["NETMASK"] = &Netmask
 	for k, v := range amap {
@@ -499,9 +790,16 @@ func (ipvs *IpvsClient) modifyFWMService(method string, fwmark uint32,
 
 func (ipvs *IpvsClient) AddFWMService(fwmark uint32,
 	sched string, af uint16) error {
+	return ipvs.AddFWMServiceWithFlags(fwmark, sched, af, BIN_NO_FLAGS)
+}
+
+func (ipvs *IpvsClient) AddFWMServiceWithFlags(fwmark uint32,
+	sched string, af uint16, flags []byte) error {
 	paramsMap := make(map[string]SerDes)
 	Sched := NulStringType(sched)
 	Timeout := U32Type(0)
+	Flags := BinaryType(flags)
+	paramsMap["FLAGS"] = &Flags
 	paramsMap["SCHED_NAME"] = &Sched
 	paramsMap["TIMEOUT"] = &Timeout
 	err := ipvs.modifyFWMService("NEW_SERVICE", fwmark,

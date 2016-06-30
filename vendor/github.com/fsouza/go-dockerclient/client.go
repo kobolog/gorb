@@ -27,12 +27,13 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
-	"github.com/fsouza/go-dockerclient/external/github.com/docker/docker/opts"
-	"github.com/fsouza/go-dockerclient/external/github.com/docker/docker/pkg/homedir"
-	"github.com/fsouza/go-dockerclient/external/github.com/docker/docker/pkg/stdcopy"
-	"github.com/fsouza/go-dockerclient/external/github.com/hashicorp/go-cleanhttp"
+	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 const userAgent = "go-dockerclient"
@@ -44,9 +45,12 @@ var (
 	// ErrConnectionRefused is returned when the client cannot connect to the given endpoint.
 	ErrConnectionRefused = errors.New("cannot connect to Docker endpoint")
 
-	apiVersion112, _ = NewAPIVersion("1.12")
+	// ErrInactivityTimeout is returned when a streamable call has been inactive for some time.
+	ErrInactivityTimeout = errors.New("inactivity time exceeded timeout")
 
+	apiVersion112, _ = NewAPIVersion("1.12")
 	apiVersion119, _ = NewAPIVersion("1.19")
+	apiVersion124, _ = NewAPIVersion("1.24")
 )
 
 // APIVersion is an internal representation of a version of the Remote API.
@@ -60,7 +64,8 @@ func NewAPIVersion(input string) (APIVersion, error) {
 	if !strings.Contains(input, ".") {
 		return nil, fmt.Errorf("Unable to parse version %q", input)
 	}
-	arr := strings.Split(input, ".")
+	raw := strings.Split(input, "-")
+	arr := strings.Split(raw[0], ".")
 	ret := make(APIVersion, len(arr))
 	var err error
 	for i, val := range arr {
@@ -139,6 +144,9 @@ type Client struct {
 	serverAPIVersion    APIVersion
 	expectedAPIVersion  APIVersion
 	unixHTTPClient      *http.Client
+
+	// A timeout to use when using both the unixHTTPClient and HTTPClient
+	timeout time.Duration
 }
 
 // NewClient returns a Client instance ready for communication with the given
@@ -311,6 +319,12 @@ func NewVersionedTLSClientFromBytes(endpoint string, certPEMBlock, keyPEMBlock, 
 	}, nil
 }
 
+// SetTimeout takes a timeout and applies it to subsequent requests to the
+// docker engine
+func (c *Client) SetTimeout(t time.Duration) {
+	c.timeout = t
+}
+
 func (c *Client) checkAPIVersion() error {
 	serverAPIVersionString, err := c.getServerAPIVersionString()
 	if err != nil {
@@ -400,6 +414,12 @@ func (c *Client) do(method, path string, doOptions doOptions) (*http.Response, e
 	} else {
 		u = c.getURL(path)
 	}
+
+	// If the user has provided a timeout, apply it.
+	if c.timeout != 0 {
+		httpClient.Timeout = c.timeout
+	}
+
 	req, err := http.NewRequest(method, u, params)
 	if err != nil {
 		return nil, err
@@ -435,8 +455,11 @@ type streamOptions struct {
 	in             io.Reader
 	stdout         io.Writer
 	stderr         io.Writer
-	// timeout is the inital connection timeout
+	// timeout is the initial connection timeout
 	timeout time.Duration
+	// Timeout with no data is received, it's reset every time new data
+	// arrives
+	inactivityTimeout time.Duration
 }
 
 func (c *Client) stream(method, path string, streamOptions streamOptions) error {
@@ -469,11 +492,13 @@ func (c *Client) stream(method, path string, streamOptions streamOptions) error 
 	if streamOptions.stderr == nil {
 		streamOptions.stderr = ioutil.Discard
 	}
+	cancelRequest := cancelable(c.HTTPClient, req)
 	if protocol == "unix" {
 		dial, err := c.Dialer.Dial(protocol, address)
 		if err != nil {
 			return err
 		}
+		cancelRequest = func() { dial.Close() }
 		defer dial.Close()
 		breader := bufio.NewReader(dial)
 		err = req.Write(dial)
@@ -508,33 +533,24 @@ func (c *Client) stream(method, path string, streamOptions streamOptions) error 
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		return newError(resp)
 	}
-	if streamOptions.useJSONDecoder || resp.Header.Get("Content-Type") == "application/json" {
-		// if we want to get raw json stream, just copy it back to output
-		// without decoding it
-		if streamOptions.rawJSONStream {
-			_, err = io.Copy(streamOptions.stdout, resp.Body)
-			return err
+	var canceled uint32
+	if streamOptions.inactivityTimeout > 0 {
+		ch := handleInactivityTimeout(&streamOptions, cancelRequest, &canceled)
+		defer close(ch)
+	}
+	err = handleStreamResponse(resp, &streamOptions)
+	if err != nil {
+		if atomic.LoadUint32(&canceled) != 0 {
+			return ErrInactivityTimeout
 		}
-		dec := json.NewDecoder(resp.Body)
-		for {
-			var m jsonMessage
-			if err := dec.Decode(&m); err == io.EOF {
-				break
-			} else if err != nil {
-				return err
-			}
-			if m.Stream != "" {
-				fmt.Fprint(streamOptions.stdout, m.Stream)
-			} else if m.Progress != "" {
-				fmt.Fprintf(streamOptions.stdout, "%s %s\r", m.Status, m.Progress)
-			} else if m.Error != "" {
-				return errors.New(m.Error)
-			}
-			if m.Status != "" {
-				fmt.Fprintln(streamOptions.stdout, m.Status)
-			}
-		}
-	} else {
+		return err
+	}
+	return nil
+}
+
+func handleStreamResponse(resp *http.Response, streamOptions *streamOptions) error {
+	var err error
+	if !streamOptions.useJSONDecoder && resp.Header.Get("Content-Type") != "application/json" {
 		if streamOptions.setRawTerminal {
 			_, err = io.Copy(streamOptions.stdout, resp.Body)
 		} else {
@@ -542,7 +558,72 @@ func (c *Client) stream(method, path string, streamOptions streamOptions) error 
 		}
 		return err
 	}
+	// if we want to get raw json stream, just copy it back to output
+	// without decoding it
+	if streamOptions.rawJSONStream {
+		_, err = io.Copy(streamOptions.stdout, resp.Body)
+		return err
+	}
+	dec := json.NewDecoder(resp.Body)
+	for {
+		var m jsonMessage
+		if err := dec.Decode(&m); err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		if m.Stream != "" {
+			fmt.Fprint(streamOptions.stdout, m.Stream)
+		} else if m.Progress != "" {
+			fmt.Fprintf(streamOptions.stdout, "%s %s\r", m.Status, m.Progress)
+		} else if m.Error != "" {
+			return errors.New(m.Error)
+		}
+		if m.Status != "" {
+			fmt.Fprintln(streamOptions.stdout, m.Status)
+		}
+	}
 	return nil
+}
+
+type proxyWriter struct {
+	io.Writer
+	calls uint64
+}
+
+func (p *proxyWriter) callCount() uint64 {
+	return atomic.LoadUint64(&p.calls)
+}
+
+func (p *proxyWriter) Write(data []byte) (int, error) {
+	atomic.AddUint64(&p.calls, 1)
+	return p.Writer.Write(data)
+}
+
+func handleInactivityTimeout(options *streamOptions, cancelRequest func(), canceled *uint32) chan<- struct{} {
+	done := make(chan struct{})
+	proxyStdout := &proxyWriter{Writer: options.stdout}
+	proxyStderr := &proxyWriter{Writer: options.stderr}
+	options.stdout = proxyStdout
+	options.stderr = proxyStderr
+	go func() {
+		var lastCallCount uint64
+		for {
+			select {
+			case <-time.After(options.inactivityTimeout):
+			case <-done:
+				return
+			}
+			curCallCount := proxyStdout.callCount() + proxyStderr.callCount()
+			if curCallCount == lastCallCount {
+				atomic.AddUint32(canceled, 1)
+				cancelRequest()
+				return
+			}
+			lastCallCount = curCallCount
+		}
+	}()
+	return done
 }
 
 type hijackOptions struct {
@@ -554,26 +635,41 @@ type hijackOptions struct {
 	data           interface{}
 }
 
-func (c *Client) hijack(method, path string, hijackOptions hijackOptions) error {
+// CloseWaiter is an interface with methods for closing the underlying resource
+// and then waiting for it to finish processing.
+type CloseWaiter interface {
+	io.Closer
+	Wait() error
+}
+
+type waiterFunc func() error
+
+func (w waiterFunc) Wait() error { return w() }
+
+type closerFunc func() error
+
+func (c closerFunc) Close() error { return c() }
+
+func (c *Client) hijack(method, path string, hijackOptions hijackOptions) (CloseWaiter, error) {
 	if path != "/version" && !c.SkipServerVersionCheck && c.expectedAPIVersion == nil {
 		err := c.checkAPIVersion()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	var params io.Reader
 	if hijackOptions.data != nil {
 		buf, err := json.Marshal(hijackOptions.data)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		params = bytes.NewBuffer(buf)
 	}
 	req, err := http.NewRequest(method, c.getURL(path), params)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	req.Header.Set("Content-Type", "plain/text")
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 	protocol := c.endpointURL.Scheme
@@ -586,74 +682,103 @@ func (c *Client) hijack(method, path string, hijackOptions hijackOptions) error 
 	if c.TLSConfig != nil && protocol != "unix" {
 		dial, err = tlsDialWithDialer(c.Dialer, protocol, address, c.TLSConfig)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		dial, err = c.Dialer.Dial(protocol, address)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	clientconn := httputil.NewClientConn(dial, nil)
-	defer clientconn.Close()
-	clientconn.Do(req)
-	if hijackOptions.success != nil {
-		hijackOptions.success <- struct{}{}
-		<-hijackOptions.success
-	}
-	rwc, br := clientconn.Hijack()
-	defer rwc.Close()
-	errChanOut := make(chan error, 1)
-	errChanIn := make(chan error, 1)
-	if hijackOptions.stdout == nil && hijackOptions.stderr == nil {
-		close(errChanOut)
-	} else {
-		// Only copy if hijackOptions.stdout and/or hijackOptions.stderr is actually set.
-		// Otherwise, if the only stream you care about is stdin, your attach session
-		// will "hang" until the container terminates, even though you're not reading
-		// stdout/stderr
-		if hijackOptions.stdout == nil {
-			hijackOptions.stdout = ioutil.Discard
+
+	errs := make(chan error)
+	quit := make(chan struct{})
+	go func() {
+		clientconn := httputil.NewClientConn(dial, nil)
+		defer clientconn.Close()
+		clientconn.Do(req)
+		if hijackOptions.success != nil {
+			hijackOptions.success <- struct{}{}
+			<-hijackOptions.success
 		}
-		if hijackOptions.stderr == nil {
-			hijackOptions.stderr = ioutil.Discard
+		rwc, br := clientconn.Hijack()
+		defer rwc.Close()
+
+		errChanOut := make(chan error, 1)
+		errChanIn := make(chan error, 1)
+		if hijackOptions.stdout == nil && hijackOptions.stderr == nil {
+			close(errChanOut)
+		} else {
+			// Only copy if hijackOptions.stdout and/or hijackOptions.stderr is actually set.
+			// Otherwise, if the only stream you care about is stdin, your attach session
+			// will "hang" until the container terminates, even though you're not reading
+			// stdout/stderr
+			if hijackOptions.stdout == nil {
+				hijackOptions.stdout = ioutil.Discard
+			}
+			if hijackOptions.stderr == nil {
+				hijackOptions.stderr = ioutil.Discard
+			}
+
+			go func() {
+				defer func() {
+					if hijackOptions.in != nil {
+						if closer, ok := hijackOptions.in.(io.Closer); ok {
+							closer.Close()
+						}
+						errChanIn <- nil
+					}
+				}()
+
+				var err error
+				if hijackOptions.setRawTerminal {
+					_, err = io.Copy(hijackOptions.stdout, br)
+				} else {
+					_, err = stdcopy.StdCopy(hijackOptions.stdout, hijackOptions.stderr, br)
+				}
+				errChanOut <- err
+			}()
 		}
 
 		go func() {
-			defer func() {
-				if hijackOptions.in != nil {
-					if closer, ok := hijackOptions.in.(io.Closer); ok {
-						closer.Close()
-					}
-					errChanIn <- nil
-				}
-			}()
-
 			var err error
-			if hijackOptions.setRawTerminal {
-				_, err = io.Copy(hijackOptions.stdout, br)
-			} else {
-				_, err = stdcopy.StdCopy(hijackOptions.stdout, hijackOptions.stderr, br)
+			if hijackOptions.in != nil {
+				_, err = io.Copy(rwc, hijackOptions.in)
 			}
-			errChanOut <- err
+			errChanIn <- err
+			rwc.(interface {
+				CloseWrite() error
+			}).CloseWrite()
 		}()
-	}
-	go func() {
-		var err error
-		if hijackOptions.in != nil {
-			_, err = io.Copy(rwc, hijackOptions.in)
+
+		var errIn error
+		select {
+		case errIn = <-errChanIn:
+		case <-quit:
+			return
 		}
-		errChanIn <- err
-		rwc.(interface {
-			CloseWrite() error
-		}).CloseWrite()
+
+		var errOut error
+		select {
+		case errOut = <-errChanOut:
+		case <-quit:
+			return
+		}
+
+		if errIn != nil {
+			errs <- errIn
+		} else {
+			errs <- errOut
+		}
 	}()
-	errIn := <-errChanIn
-	errOut := <-errChanOut
-	if errIn != nil {
-		return errIn
-	}
-	return errOut
+
+	return struct {
+		closerFunc
+		waiterFunc
+	}{
+		closerFunc(func() error { close(quit); return nil }),
+		waiterFunc(func() error { return <-errs }),
+	}, nil
 }
 
 func (c *Client) getURL(path string) string {
@@ -688,13 +813,11 @@ func (c *Client) unixClient() *http.Client {
 		return c.unixHTTPClient
 	}
 	socketPath := c.endpointURL.Path
-	c.unixHTTPClient = &http.Client{
-		Transport: &http.Transport{
-			Dial: func(network, addr string) (net.Conn, error) {
-				return c.Dialer.Dial("unix", socketPath)
-			},
-		},
+	tr := cleanhttp.DefaultTransport()
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		return c.Dialer.Dial("unix", socketPath)
 	}
+	c.unixHTTPClient = &http.Client{Transport: tr}
 	return c.unixHTTPClient
 }
 
