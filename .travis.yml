@@ -7,7 +7,8 @@ go:
   - tip
 
 install:
-  - go get -t ./...
+  - go get -t -v github.com/tehnerd/gnl2go
+  - go get -t -v ./...
 
 script:
   - ./.travis/script.sh . core disco pulse util gorb-docker-link
