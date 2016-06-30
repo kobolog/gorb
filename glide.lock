@@ -1,5 +1,5 @@
 hash: 36df526efbdb38227575949340b93609baaa4fb1bae3915ace3276ec1bf64d08
-updated: 2016-06-30T13:46:56.218033502-04:00
+updated: 2016-06-30T14:12:52.092658887-04:00
 imports:
 - name: github.com/docker/docker
   version: cbc4fd2131d06c0342a330843a02632034f1db7b
