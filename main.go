@@ -34,11 +34,12 @@ import (
 )
 
 var (
-	debug  = flag.Bool("v", false, "enable verbose output")
-	device = flag.String("i", "eth0", "default interface to bind services on")
-	flush  = flag.Bool("f", false, "flush IPVS pools on start")
-	listen = flag.String("l", ":4672", "endpoint to listen for HTTP requests")
-	consul = flag.String("c", "", "URL for Consul HTTP API")
+	debug        = flag.Bool("v", false, "enable verbose output")
+	device       = flag.String("i", "eth0", "default interface to bind services on")
+	flush        = flag.Bool("f", false, "flush IPVS pools on start")
+	listen       = flag.String("l", ":4672", "endpoint to listen for HTTP requests")
+	consul       = flag.String("c", "", "URL for Consul HTTP API")
+	vipInterface = flag.String("vipi", "", "interface to add VIPs")
 )
 
 func main() {
@@ -71,10 +72,11 @@ func main() {
 	}
 
 	ctx, err := core.NewContext(core.ContextOptions{
-		Disco:      *consul,
-		Endpoints:  hostIPs,
-		Flush:      *flush,
-		ListenPort: listenPort})
+		Disco:        *consul,
+		Endpoints:    hostIPs,
+		Flush:        *flush,
+		ListenPort:   listenPort,
+		VipInterface: *vipInterface})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)
