@@ -22,12 +22,14 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 
 	"github.com/kobolog/gorb/disco"
 	"github.com/kobolog/gorb/pulse"
 	"github.com/kobolog/gorb/util"
+	"github.com/vishvananda/netlink"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/tehnerd/gnl2go"
@@ -54,14 +56,15 @@ type backend struct {
 
 // Context abstacts away the underlying IPVS bindings implementation.
 type Context struct {
-	ipvs     gnl2go.IpvsClient
-	endpoint net.IP
-	services map[string]*service
-	backends map[string]*backend
-	mutex    sync.RWMutex
-	pulseCh  chan pulse.Update
-	disco    disco.Driver
-	stopCh   chan struct{}
+	ipvs         gnl2go.IpvsClient
+	endpoint     net.IP
+	services     map[string]*service
+	backends     map[string]*backend
+	mutex        sync.RWMutex
+	pulseCh      chan pulse.Update
+	disco        disco.Driver
+	stopCh       chan struct{}
+	vipInterface netlink.Link
 }
 
 // NewContext creates a new Context and initializes IPVS.
@@ -115,6 +118,17 @@ func NewContext(options ContextOptions) (*Context, error) {
 		return nil, ErrIpvsSyscallFailed
 	}
 
+	if options.VipInterface != "" {
+		var err error
+		if ctx.vipInterface, err = netlink.LinkByName(options.VipInterface); err != nil {
+			ctx.Close()
+			return nil, fmt.Errorf(
+				"unable to find the interface '%s' for VIPs: %s",
+				options.VipInterface, err)
+		}
+		log.Infof("VIPs will be added to interface '%s'", ctx.vipInterface.Attrs().Name)
+	}
+
 	// Fire off a pulse notifications sink goroutine.
 	go ctx.run()
 
@@ -147,6 +161,18 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 
 	if _, exists := ctx.services[vsID]; exists {
 		return ErrObjectExists
+	}
+
+	if ctx.vipInterface != nil {
+		ifName := ctx.vipInterface.Attrs().Name
+		vip := &netlink.Addr{IPNet: &net.IPNet{
+			net.ParseIP(opts.host.String()), net.IPv4Mask(255, 255, 255, 255)}}
+		if err := netlink.AddrAdd(ctx.vipInterface, vip); err != nil {
+			log.Infof(
+				"failed to add VIP %s to interface '%s' for service [%s]: %s",
+				opts.host, ifName, vsID, err)
+		}
+		log.Infof("VIP %s has been added to interface '%s'", opts.host, ifName)
 	}
 
 	log.Infof("creating virtual service [%s] on %s:%d", vsID, opts.host,

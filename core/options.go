@@ -40,10 +40,11 @@ var (
 
 // ContextOptions configure Context behavior.
 type ContextOptions struct {
-	Disco      string
-	Endpoints  []net.IP
-	Flush      bool
-	ListenPort uint16
+	Disco        string
+	Endpoints    []net.IP
+	Flush        bool
+	ListenPort   uint16
+	VipInterface string
 }
 
 // ServiceOptions describe a virtual service.
