@@ -57,6 +57,7 @@ type ServiceOptions struct {
 
 	// Host string resolved to an IP, including DNS lookup.
 	host net.IP
+	DelIfAddr bool
 
 	// Protocol string converted to a protocol number.
 	protocol uint16
