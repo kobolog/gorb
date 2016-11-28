@@ -171,6 +171,8 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 			log.Infof(
 				"failed to add VIP %s to interface '%s' for service [%s]: %s",
 				opts.host, ifName, vsID, err)
+		} else {
+			opts.delIfAddr = true
 		}
 		log.Infof("VIP %s has been added to interface '%s'", opts.host, ifName)
 	}
@@ -299,6 +301,18 @@ func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 	}
 
 	delete(ctx.services, vsID)
+
+	if ctx.vipInterface != nil && vs.options.delIfAddr == true {
+		ifName := ctx.vipInterface.Attrs().Name
+		vip := &netlink.Addr{IPNet: &net.IPNet{
+			net.ParseIP(vs.options.host.String()), net.IPv4Mask(255, 255, 255, 255)}}
+		if err := netlink.AddrDel(ctx.vipInterface, vip); err != nil {
+			log.Infof(
+				"failed to delete VIP %s to interface '%s' for service [%s]: %s",
+				vs.options.host, ifName, vsID, err)
+		}
+		log.Infof("VIP %s has been deleted from interface '%s'", vs.options.host, ifName)
+	}
 
 	log.Infof("removing virtual service [%s] from %s:%d", vsID,
 		vs.options.host,
