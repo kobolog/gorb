@@ -56,11 +56,11 @@ type ServiceOptions struct {
 	Persistent bool   `json:"persistent"`
 
 	// Host string resolved to an IP, including DNS lookup.
-	host net.IP
-	DelIfAddr bool
+	host       net.IP
+	delIfAddr  bool
 
 	// Protocol string converted to a protocol number.
-	protocol uint16
+	protocol   uint16
 }
 
 // Validate fills missing fields and validates virtual service configuration.
