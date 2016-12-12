@@ -142,6 +142,8 @@ func (o *BackendOptions) Validate() error {
 	o.Method = strings.ToLower(o.Method)
 
 	switch o.Method {
+	case "dr":
+		o.methodID = gnl2go.IPVS_DIRECTROUTE
 	case "nat":
 		o.methodID = gnl2go.IPVS_MASQUERADING
 	case "tunnel", "ipip":
