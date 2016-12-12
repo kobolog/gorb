@@ -68,6 +68,7 @@ import (
 const (
 	IPVS_MASQUERADING = 0
 	IPVS_TUNNELING    = 2
+	IPVS_DIRECTROUTE  = 3
 )
 
 const (
@@ -490,7 +491,7 @@ func (stats *Stats) InitFromAttrList(list map[string]SerDes) {
 	outbps := list["OUTBPS"].(*U32Type)
 	stats.Conns = uint32(*conns)
 	stats.Inpkts = uint32(*inpkts)
-	stats.Outpps = uint32(*outpkts)
+	stats.Outpkts = uint32(*outpkts)
 	stats.Inbytes = uint64(*inbytes)
 	stats.Outbytes = uint64(*outbytes)
 	stats.Cps = uint32(*cps)
@@ -506,7 +507,7 @@ func (stats Stats) GetStats() map[string]uint64 {
 	statsMap["INPKTS"] = uint64(stats.Inpkts)
 	statsMap["OUTPKTS"] = uint64(stats.Outpkts)
 	statsMap["INBYTES"] = uint64(stats.Inbytes)
-	statsMap["OYTBYTES"] = uint64(stats.Outbytes)
+	statsMap["OUTBYTES"] = uint64(stats.Outbytes)
 	statsMap["CPS"] = uint64(stats.Cps)
 	statsMap["INPPS"] = uint64(stats.Inpps)
 	statsMap["OUTPPS"] = uint64(stats.Outpps)
@@ -542,7 +543,7 @@ func (stats *Stats64) InitFromAttrList(list map[string]SerDes) {
 	outbps := list["OUTBPS"].(*U64Type)
 	stats.Conns = uint64(*conns)
 	stats.Inpkts = uint64(*inpkts)
-	stats.Outpps = uint64(*outpkts)
+	stats.Outpkts = uint64(*outpkts)
 	stats.Inbytes = uint64(*inbytes)
 	stats.Outbytes = uint64(*outbytes)
 	stats.Cps = uint64(*cps)
@@ -558,7 +559,7 @@ func (stats Stats64) GetStats() map[string]uint64 {
 	statsMap["INPKTS"] = stats.Inpkts
 	statsMap["OUTPKTS"] = stats.Outpkts
 	statsMap["INBYTES"] = stats.Inbytes
-	statsMap["OYTBYTES"] = stats.Outbytes
+	statsMap["OUTBYTES"] = stats.Outbytes
 	statsMap["CPS"] = stats.Cps
 	statsMap["INPPS"] = stats.Inpps
 	statsMap["OUTPPS"] = stats.Outpps
