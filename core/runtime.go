@@ -38,6 +38,7 @@ func (ctx *Context) run() {
 
 			// check exist
 			if _, ok := ctx.backends[rsID]; !ok {
+				ctx.mutex.Unlock()
 				continue
 			}
 

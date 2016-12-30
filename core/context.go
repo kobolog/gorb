@@ -153,6 +153,10 @@ func (ctx *Context) Close() {
 
 // CreateService registers a new virtual service with IPVS.
 func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
+	if err := opts.Validate(ctx.endpoint); err != nil {
+		return err
+	}
+
 	if _, exists := ctx.services[vsID]; exists {
 		return ErrObjectExists
 	}
@@ -200,9 +204,6 @@ func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
 
 // CreateService registers a new virtual service with IPVS.
 func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
-	if err := opts.Validate(ctx.endpoint); err != nil {
-		return err
-	}
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.createService(vsID, opts)
@@ -210,6 +211,9 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 
 // CreateBackend registers a new backend with a virtual service.
 func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error {
+	if err := opts.Validate(); err != nil {
+		return err
+	}
 	p, err := pulse.New(opts.host.String(), opts.Port, opts.Pulse)
 	if err != nil {
 		return err
@@ -263,9 +267,6 @@ func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error
 
 // CreateBackend registers a new backend with a virtual service.
 func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error {
-	if err := opts.Validate(); err != nil {
-		return err
-	}
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
 	return ctx.createBackend(vsID, rsID, opts)
@@ -300,10 +301,14 @@ func (ctx *Context) updateBackend(vsID, rsID string, weight int32) (int32, error
 	// Save the old backend weight and update the current backend weight.
 	result, rs.options.Weight = rs.options.Weight, weight
 
-	// update backend to external store
-	if ctx.store != nil {
-		ctx.store.UpdateBackend(vsID, rsID, rs.options)
-	}
+	// Currently the backend options are changing only the weight.
+	// The weight value is set to the value requested at the first setting,
+	// and the weight value is updated when the pulse fails in the gorb.
+	// In kvstore, it seems correct to record the request at the first setting and
+	// not reflect the updated weight value.
+	//if ctx.store != nil {
+	//	ctx.store.UpdateBackend(vsID, rsID, rs.options)
+	//}
 
 	return result, nil
 }
@@ -507,4 +512,56 @@ func (ctx *Context) GetBackend(vsID, rsID string) (*BackendInfo, error) {
 // if external kvstore exists, set store to context
 func (ctx *Context) SetStore(store *Store) {
 	ctx.store = store
+}
+
+func (ctx *Context) Synchronize(storeServices map[string]*ServiceOptions, storeBackends map[string]*BackendOptions) {
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
+
+	log.Debugf("============================== SYNC ========================================")
+	for k, v := range storeServices {
+		log.Debugf("SERVICE[%s]: %s", k, v)
+	}
+	for k, v := range storeBackends {
+		log.Debugf("  BACKEND[%s]: %s", k, v)
+	}
+	defer log.Debugf("============================================================================")
+
+	// synchronize services with store
+	for id, _ := range ctx.services {
+		if _, ok := storeServices[id]; !ok {
+			ctx.removeService(id)
+		}
+	}
+	for id, storeServiceOptions := range storeServices {
+		if service, ok := ctx.services[id]; ok {
+			if service.options.CompareStoreOptions(storeServiceOptions) {
+				continue
+			}
+			ctx.removeService(id)
+		}
+		ctx.createService(id, storeServiceOptions)
+	}
+
+	// synchronize backends with store
+	for id, backend := range ctx.backends {
+		if _, ok := storeBackends[id]; !ok {
+			vsID := "(unknown)"
+			if len(backend.options.VsID) > 0 {
+				vsID = backend.options.VsID
+			}
+			ctx.removeBackend(vsID, id)
+		}
+	}
+	for id, storeBackendOptions := range storeBackends {
+		if backend, ok := ctx.backends[id]; ok {
+			if backend.options.CompareStoreOptions(storeBackendOptions) {
+				continue
+			}
+			ctx.removeBackend(storeBackendOptions.VsID, id)
+		}
+		if err := ctx.createBackend(storeBackendOptions.VsID, id, storeBackendOptions); err != nil {
+			log.Warnf("create backend error: %s", err.Error())
+		}
+	}
 }

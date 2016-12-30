@@ -40,11 +40,11 @@ var (
 
 // ContextOptions configure Context behavior.
 type ContextOptions struct {
-	Disco            string
-	Endpoints        []net.IP
-	Flush            bool
-	ListenPort       uint16
-	VipInterface     string
+	Disco        string
+	Endpoints    []net.IP
+	Flush        bool
+	ListenPort   uint16
+	VipInterface string
 }
 
 // ServiceOptions describe a virtual service.
@@ -56,11 +56,11 @@ type ServiceOptions struct {
 	Persistent bool   `json:"persistent"`
 
 	// Host string resolved to an IP, including DNS lookup.
-	host       net.IP
-	delIfAddr  bool
+	host      net.IP
+	delIfAddr bool
 
 	// Protocol string converted to a protocol number.
-	protocol   uint16
+	protocol uint16
 }
 
 // Validate fills missing fields and validates virtual service configuration.
@@ -104,17 +104,36 @@ func (o *ServiceOptions) Validate(defaultHost net.IP) error {
 	return nil
 }
 
+func (o *ServiceOptions) CompareStoreOptions(options *ServiceOptions) bool {
+	if o.Host != options.Host {
+		return false
+	}
+	if o.Port != options.Port {
+		return false
+	}
+	if o.Protocol != options.Protocol {
+		return false
+	}
+	if o.Method != options.Method {
+		return false
+	}
+	if o.Persistent != options.Persistent {
+		return false
+	}
+	return true
+}
+
 // BackendOptions describe a virtual service backend.
 type BackendOptions struct {
-	Host     string         `json:"host"`
-	Port     uint16         `json:"port"`
-	Weight   int32          `json:"weight"`
-	Method   string         `json:"method"`
-	Pulse    *pulse.Options `json:"pulse"`
-	VsID     string         `json:"vsid,omitempty"`
+	Host   string         `json:"host"`
+	Port   uint16         `json:"port"`
+	Weight int32          `json:"weight"`
+	Method string         `json:"method"`
+	Pulse  *pulse.Options `json:"pulse"`
+	VsID   string         `json:"vsid,omitempty"`
 
 	// Host string resolved to an IP, including DNS lookup.
-	host     net.IP
+	host net.IP
 
 	// Forwarding method string converted to a forwarding method number.
 	methodID uint32
@@ -159,4 +178,17 @@ func (o *BackendOptions) Validate() error {
 	}
 
 	return nil
+}
+
+func (o *BackendOptions) CompareStoreOptions(options *BackendOptions) bool {
+	if o.Host != options.Host {
+		return false
+	}
+	if o.Port != options.Port {
+		return false
+	}
+	if o.Method != options.Method {
+		return false
+	}
+	return true
 }
