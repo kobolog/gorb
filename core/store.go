@@ -31,7 +31,7 @@ type Store struct {
 	stopCh  chan struct{}
 }
 
-func NewStore(storeUrl, storeServicePath, storeBackendPath string, timeout uint64, context *Context) (*Store, error) {
+func NewStore(storeUrl, storeServicePath, storeBackendPath string, context *Context) (*Store, error) {
 	uri, err := url.Parse(storeUrl)
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func NewStore(storeUrl, storeServicePath, storeBackendPath string, timeout uint6
 	context.SetStore(store)
 
 	store.Sync()
-	storeTimer := time.NewTicker(time.Duration(timeout) * time.Second)
+	storeTimer := time.NewTicker(time.Duration(3) * time.Second)
 	go func() {
 		for {
 			select {

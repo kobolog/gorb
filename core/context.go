@@ -152,14 +152,7 @@ func (ctx *Context) Close() {
 }
 
 // CreateService registers a new virtual service with IPVS.
-func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
-	if err := opts.Validate(ctx.endpoint); err != nil {
-		return err
-	}
-
-	ctx.mutex.Lock()
-	defer ctx.mutex.Unlock()
-
+func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
 	if _, exists := ctx.services[vsID]; exists {
 		return ErrObjectExists
 	}
@@ -205,19 +198,22 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 	return nil
 }
 
-// CreateBackend registers a new backend with a virtual service.
-func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error {
-	if err := opts.Validate(); err != nil {
+// CreateService registers a new virtual service with IPVS.
+func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
+	if err := opts.Validate(ctx.endpoint); err != nil {
 		return err
 	}
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
+	return ctx.createService(vsID, opts)
+}
 
+// CreateBackend registers a new backend with a virtual service.
+func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error {
 	p, err := pulse.New(opts.host.String(), opts.Port, opts.Pulse)
 	if err != nil {
 		return err
 	}
-
-	ctx.mutex.Lock()
-	defer ctx.mutex.Unlock()
 
 	if _, exists := ctx.backends[rsID]; exists {
 		return ErrObjectExists
@@ -265,11 +261,18 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 	return nil
 }
 
-// UpdateBackend updates the specified backend's weight.
-func (ctx *Context) UpdateBackend(vsID, rsID string, weight int32) (int32, error) {
+// CreateBackend registers a new backend with a virtual service.
+func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error {
+	if err := opts.Validate(); err != nil {
+		return err
+	}
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
+	return ctx.createBackend(vsID, rsID, opts)
+}
 
+// UpdateBackend updates the specified backend's weight.
+func (ctx *Context) updateBackend(vsID, rsID string, weight int32) (int32, error) {
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
@@ -305,11 +308,15 @@ func (ctx *Context) UpdateBackend(vsID, rsID string, weight int32) (int32, error
 	return result, nil
 }
 
-// RemoveService deregisters a virtual service.
-func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
+// UpdateBackend updates the specified backend's weight.
+func (ctx *Context) UpdateBackend(vsID, rsID string, weight int32) (int32, error) {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
+	return ctx.updateBackend(vsID, rsID, weight)
+}
 
+// RemoveService deregisters a virtual service.
+func (ctx *Context) removeService(vsID string) (*ServiceOptions, error) {
 	vs, exists := ctx.services[vsID]
 
 	if !exists {
@@ -374,11 +381,15 @@ func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 	return vs.options, nil
 }
 
-// RemoveBackend deregisters a backend.
-func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
+// RemoveService deregisters a virtual service.
+func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 	ctx.mutex.Lock()
 	defer ctx.mutex.Unlock()
+	return ctx.removeService(vsID)
+}
 
+// RemoveBackend deregisters a backend.
+func (ctx *Context) removeBackend(vsID, rsID string) (*BackendOptions, error) {
 	rs, exists := ctx.backends[rsID]
 
 	if !exists {
@@ -409,6 +420,13 @@ func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
 	}
 
 	return rs.options, nil
+}
+
+// RemoveBackend deregisters a backend.
+func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
+	return ctx.removeBackend(vsID, rsID)
 }
 
 // ListServices returns a list of all registered services.
