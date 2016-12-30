@@ -65,6 +65,7 @@ type Context struct {
 	disco        disco.Driver
 	stopCh       chan struct{}
 	vipInterface netlink.Link
+	store        *Store
 }
 
 // NewContext creates a new Context and initializes IPVS.
@@ -196,6 +197,11 @@ func (ctx *Context) CreateService(vsID string, opts *ServiceOptions) error {
 		log.Errorf("error while exposing service to Disco: %s", err)
 	}
 
+	// create service to external store
+	if ctx.store != nil {
+		ctx.store.CreateService(vsID, opts)
+	}
+
 	return nil
 }
 
@@ -251,6 +257,11 @@ func (ctx *Context) CreateBackend(vsID, rsID string, opts *BackendOptions) error
 	// Fire off the configured pulse goroutine, attach it to the Context.
 	go ctx.backends[rsID].monitor.Loop(pulse.ID{VsID: vsID, RsID: rsID}, ctx.pulseCh, ctx.stopCh)
 
+	// create backend to external store
+	if ctx.store != nil {
+		ctx.store.CreateBackend(vsID, rsID, opts)
+	}
+
 	return nil
 }
 
@@ -285,6 +296,11 @@ func (ctx *Context) UpdateBackend(vsID, rsID string, weight int32) (int32, error
 
 	// Save the old backend weight and update the current backend weight.
 	result, rs.options.Weight = rs.options.Weight, weight
+
+	// update backend to external store
+	if ctx.store != nil {
+		ctx.store.UpdateBackend(vsID, rsID, rs.options)
+	}
 
 	return result, nil
 }
@@ -338,11 +354,21 @@ func (ctx *Context) RemoveService(vsID string) (*ServiceOptions, error) {
 		backend.monitor.Stop()
 
 		delete(ctx.backends, rsID)
+
+		// delete backend from external store
+		if ctx.store != nil {
+			ctx.store.RemoveBackend(rsID)
+		}
 	}
 
 	// TODO(@kobolog): This will never happen in case of gorb-link.
 	if err := ctx.disco.Remove(vsID); err != nil {
 		log.Errorf("error while removing service from Disco: %s", err)
+	}
+
+	// delete service from external store
+	if ctx.store != nil {
+		ctx.store.RemoveService(vsID)
 	}
 
 	return vs.options, nil
@@ -376,6 +402,11 @@ func (ctx *Context) RemoveBackend(vsID, rsID string) (*BackendOptions, error) {
 	}
 
 	delete(ctx.backends, rsID)
+
+	// delete backend from external store
+	if ctx.store != nil {
+		ctx.store.RemoveBackend(rsID)
+	}
 
 	return rs.options, nil
 }
@@ -453,4 +484,9 @@ func (ctx *Context) GetBackend(vsID, rsID string) (*BackendInfo, error) {
 	}
 
 	return &BackendInfo{rs.options, rs.metrics}, nil
+}
+
+// if external kvstore exists, set store to context
+func (ctx *Context) SetStore(store *Store) {
+	ctx.store = store
 }

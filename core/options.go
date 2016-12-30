@@ -40,11 +40,11 @@ var (
 
 // ContextOptions configure Context behavior.
 type ContextOptions struct {
-	Disco        string
-	Endpoints    []net.IP
-	Flush        bool
-	ListenPort   uint16
-	VipInterface string
+	Disco            string
+	Endpoints        []net.IP
+	Flush            bool
+	ListenPort       uint16
+	VipInterface     string
 }
 
 // ServiceOptions describe a virtual service.
@@ -106,14 +106,15 @@ func (o *ServiceOptions) Validate(defaultHost net.IP) error {
 
 // BackendOptions describe a virtual service backend.
 type BackendOptions struct {
-	Host   string         `json:"host"`
-	Port   uint16         `json:"port"`
-	Weight int32          `json:"weight"`
-	Method string         `json:"method"`
-	Pulse  *pulse.Options `json:"pulse"`
+	Host     string         `json:"host"`
+	Port     uint16         `json:"port"`
+	Weight   int32          `json:"weight"`
+	Method   string         `json:"method"`
+	Pulse    *pulse.Options `json:"pulse"`
+	VsID     string         `json:"vsid,omitempty"`
 
 	// Host string resolved to an IP, including DNS lookup.
-	host net.IP
+	host     net.IP
 
 	// Forwarding method string converted to a forwarding method number.
 	methodID uint32

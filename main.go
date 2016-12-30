@@ -75,11 +75,11 @@ func main() {
 	}
 
 	ctx, err := core.NewContext(core.ContextOptions{
-		Disco:        *consul,
-		Endpoints:    hostIPs,
-		Flush:        *flush,
-		ListenPort:   listenPort,
-		VipInterface: *vipInterface})
+		Disco:            *consul,
+		Endpoints:        hostIPs,
+		Flush:            *flush,
+		ListenPort:       listenPort,
+		VipInterface:     *vipInterface})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)
@@ -87,6 +87,15 @@ func main() {
 
 	// While it's not strictly required, close IPVS socket explicitly.
 	defer ctx.Close()
+
+	// sync with external store
+	if storeURL != nil && len(*storeURL) > 0 {
+		store, err := core.NewStore(*storeURL, *storeServicePath, *storeBackendPath, ctx)
+		if err != nil {
+			log.Fatalf("error while initializing external store sync: %s", err)
+		}
+		defer store.Close()
+	}
 
 	r := mux.NewRouter()
 

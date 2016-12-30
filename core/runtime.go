@@ -36,6 +36,11 @@ func (ctx *Context) run() {
 
 			ctx.mutex.Lock()
 
+			// check exist
+			if _, ok := ctx.backends[rsID]; !ok {
+				continue
+			}
+
 			if ctx.backends[rsID].metrics.Status != u.Metrics.Status {
 				log.Warnf("backend %s status: %s", u.Source, u.Metrics.Status)
 			}
