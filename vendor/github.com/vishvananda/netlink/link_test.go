@@ -21,7 +21,6 @@ func testLinkAddDel(t *testing.T, link Link) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	num := len(links)
 
 	if err := LinkAdd(link); err != nil {
 		t.Fatal(err)
@@ -120,6 +119,20 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if _, ok := link.(*Vti); ok {
+		_, ok := result.(*Vti)
+		if !ok {
+			t.Fatal("Result of create is not a vti")
+		}
+	}
+
+	if _, ok := link.(*Iptun); ok {
+		_, ok := result.(*Iptun)
+		if !ok {
+			t.Fatal("Result of create is not a iptun")
+		}
+	}
+
 	if err = LinkDel(link); err != nil {
 		t.Fatal(err)
 	}
@@ -129,9 +142,10 @@ func testLinkAddDel(t *testing.T, link Link) {
 		t.Fatal(err)
 	}
 
-	if len(links) != num {
-		t.Fatal("Link not removed properly")
-		return
+	for _, l := range links {
+		if l.Attrs().Name == link.Attrs().Name {
+			t.Fatal("Link not removed properly")
+		}
 	}
 }
 
@@ -966,6 +980,81 @@ func TestLinkXdp(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := LinkSetXdpFd(testXdpLink, -1); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLinkAddDelIptun(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Iptun{
+		LinkAttrs: LinkAttrs{Name: "iptunfoo"},
+		PMtuDisc:  1,
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 1)})
+}
+
+func TestLinkAddDelVti(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Vti{
+		LinkAttrs: LinkAttrs{Name: "vtifoo"},
+		IKey:      0x101,
+		OKey:      0x101,
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 1)})
+}
+
+func TestLinkSubscribeWithProtinfo(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	master := &Bridge{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(master); err != nil {
+		t.Fatal(err)
+	}
+
+	slave := &Veth{
+		LinkAttrs: LinkAttrs{
+			Name:        "bar",
+			TxQLen:      testTxQLen,
+			MTU:         1400,
+			MasterIndex: master.Attrs().Index,
+		},
+		PeerName: "bar-peer",
+	}
+	if err := LinkAdd(slave); err != nil {
+		t.Fatal(err)
+	}
+
+	ch := make(chan LinkUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	if err := LinkSubscribe(ch, done); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkSetHairpin(slave, true); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case update := <-ch:
+		if !(update.Attrs().Name == "bar" && update.Attrs().Protinfo != nil &&
+			update.Attrs().Protinfo.Hairpin) {
+			t.Fatal("Hairpin update not received as expected")
+		}
+	case <-time.After(time.Minute):
+		t.Fatal("Hairpin update timed out")
+	}
+
+	if err := LinkDel(slave); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkDel(master); err != nil {
 		t.Fatal(err)
 	}
 }

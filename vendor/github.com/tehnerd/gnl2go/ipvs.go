@@ -355,6 +355,7 @@ type Service struct {
 	Sched  string
 	FWMark uint32
 	AF     uint16
+	Flags  []byte
 }
 
 func (s *Service) IsEqual(os Service) bool {
@@ -384,6 +385,9 @@ func (s *Service) InitFromAttrList(list map[string]SerDes) error {
 	}
 	sched := list["SCHED_NAME"].(*NulStringType)
 	s.Sched = string(*sched)
+	if flags, exists := list["FLAGS"]; exists {
+		s.Flags = []byte(*flags.(*BinaryType))
+	}
 	return nil
 }
 
@@ -595,11 +599,36 @@ func (ipvs *IpvsClient) Flush() error {
 	return nil
 }
 
-func (ipvs *IpvsClient) GetPoolForService(svc Service) (Pool, error) {
+func (ipvs *IpvsClient) getService(svc Service) (map[string]SerDes, error) {
 	attrList, err := svc.CreateAttrList()
+	if err != nil {
+		return nil, err
+	}
+	svcReq, err := ipvs.mt.InitGNLMessageStr("GET_SERVICE", MATCH_ROOT_REQUEST)
+	if err != nil {
+		return nil, err
+	}
+	svcAttrListDef, _ := ATLName2ATL["IpvsServiceAttrList"]
+	svcAttrListType := CreateAttrListType(svcAttrListDef)
+	svcAttrListType.Set(attrList)
+	svcReq.AttrMap["SERVICE"] = &svcAttrListType
+	resp, err := ipvs.Sock.Query(svcReq)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) != 1 {
+		return nil, fmt.Errorf("service doesn't exist\n")
+	}
+	svcAttrList := resp[0].GetAttrList("SERVICE").(*AttrListType).Amap
+	return svcAttrList, nil
+}
+
+func (ipvs *IpvsClient) GetPoolForService(svc Service) (Pool, error) {
+	attrList, err := ipvs.getService(svc)
 	if err != nil {
 		return Pool{}, err
 	}
+
 	pool, err := ipvs.getPoolForAttrList(attrList)
 	return pool, err
 }
