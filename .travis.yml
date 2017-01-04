@@ -1,21 +1,32 @@
 sudo: false
 
 language: go
-
 go:
-  - 1.6
+  - 1.7
   - tip
 
 install:
-  - go get github.com/stretchr/testify/assert
-  - go get github.com/stretchr/testify/require
-  - go get github.com/gorilla/mux
-  - go get github.com/Sirupsen/logrus
-  - go get github.com/tehnerd/gnl2go
-  - go get github.com/fsouza/go-dockerclient
+  - go get -v github.com/Masterminds/glide
+  - go get -u gopkg.in/alecthomas/gometalinter.v1
+  - gometalinter.v1 --install
 
 script:
-  - ./.travis/script.sh . core disco pulse util gorb-docker-link
+  - ./.travis/test.sh
+  - gometalinter.v1 --deadline=5m --vendor --disable=gotype --disable=errcheck
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
+
+before_deploy:
+  - go get github.com/mitchellh/gox
+  - gox -ldflags="-X main.Version=${TRAVIS_TAG}" -output="bin/{{.Dir}}_{{.OS}}_{{.Arch}}"
+
+deploy:
+  provider: releases
+  api_key:
+    secure: MY_KEY
+  file: bin/*
+  file_glob: true
+  on:
+    tags: true
+    repo: kobolog/gorb

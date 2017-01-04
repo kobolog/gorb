@@ -34,6 +34,9 @@ import (
 )
 
 var (
+	// Version get dynamically set to git rev by ldflags at build time
+	Version = "DEV"
+
 	debug        = flag.Bool("v", false, "enable verbose output")
 	device       = flag.String("i", "eth0", "default interface to bind services on")
 	flush        = flag.Bool("f", false, "flush IPVS pools on start")
@@ -50,7 +53,7 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	log.Info("starting GORB Daemon v0.2")
+	log.Info("starting GORB Daemon v" + Version)
 
 	if os.Geteuid() != 0 {
 		log.Fatalf("this program has to be run with root priveleges to access IPVS")

@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 
 set -e
-
 echo "" > coverage.txt
 
-for pkg in $@; do
-    go test -coverprofile=profile.out -covermode=atomic ./$pkg
-
+for d in $(go list ./... | grep -v vendor); do
+    go test -race -coverprofile=profile.out -covermode=atomic $d
     if [ -f profile.out ]; then
         cat profile.out >> coverage.txt
-        rm  profile.out
+        rm profile.out
     fi
 done
