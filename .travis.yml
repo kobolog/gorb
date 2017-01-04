@@ -16,3 +16,17 @@ script:
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
+
+before_deploy:
+  - go get github.com/mitchellh/gox
+  - gox -ldflags="-X main.Version=${TRAVIS_TAG}" -output="bin/{{.Dir}}_{{.OS}}_{{.Arch}}"
+
+deploy:
+  provider: releases
+  api_key:
+    secure: MY_KEY
+  file: bin/*
+  file_glob: true
+  on:
+    tags: true
+    repo: kobolog/gorb
