@@ -1,5 +1,5 @@
-hash: 36df526efbdb38227575949340b93609baaa4fb1bae3915ace3276ec1bf64d08
-updated: 2016-06-30T14:12:52.092658887-04:00
+hash: afe3986c9b1ca48e7762b28f86e517abec78669de963da3b28a570a79ee3c3d7
+updated: 2017-01-04T18:49:41.842226843+01:00
 imports:
 - name: github.com/docker/docker
   version: cbc4fd2131d06c0342a330843a02632034f1db7b
@@ -8,13 +8,13 @@ imports:
   - pkg/archive
   - pkg/fileutils
   - pkg/homedir
-  - pkg/stdcopy
   - pkg/idtools
   - pkg/ioutils
+  - pkg/longpath
   - pkg/pools
   - pkg/promise
+  - pkg/stdcopy
   - pkg/system
-  - pkg/longpath
 - name: github.com/docker/engine-api
   version: 9885f1dfcf54494fa481ed513416a6be13ec8c7c
   subpackages:
@@ -37,7 +37,13 @@ imports:
 - name: github.com/Sirupsen/logrus
   version: f3cfb454f4c209e6668c95216c4744b8fddb2356
 - name: github.com/tehnerd/gnl2go
-  version: c9002b47ff7734af484ffc1d2e0f8940e69e9371
+  version: 101b5c6e2d44eb00fbfe85917ffc0bf95249977b
+- name: github.com/vishvananda/netlink
+  version: 13fb20a9787c14bfc4c7996ce27d7224aa815812
+  subpackages:
+  - nl
+- name: github.com/vishvananda/netns
+  version: 2c9454e4fc6e2edc1a1c84e64ed3d6e662fb6991
 - name: golang.org/x/net
   version: 8e573f4005aa312856df2ea97c32b9beac70dd89
   subpackages:
@@ -46,4 +52,17 @@ imports:
   version: 62bee037599929a6e9146f29d10dd5208c43507d
   subpackages:
   - unix
-devImports: []
+testImports:
+- name: github.com/davecgh/go-spew
+  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
+  subpackages:
+  - assert
+  - require
