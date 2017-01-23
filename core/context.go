@@ -178,6 +178,14 @@ func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
 	log.Infof("creating virtual service [%s] on %s:%d", vsID, opts.host,
 		opts.Port)
 
+	// create service to external store
+	if ctx.store != nil {
+		if err := ctx.store.CreateService(vsID, opts); err != nil {
+			log.Errorf("error while create service : %s", err)
+			return err
+		}
+	}
+
 	if err := ctx.ipvs.AddService(
 		opts.host.String(),
 		opts.Port,
@@ -192,11 +200,6 @@ func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
 
 	if err := ctx.disco.Expose(vsID, opts.host.String(), opts.Port); err != nil {
 		log.Errorf("error while exposing service to Disco: %s", err)
-	}
-
-	// create service to external store
-	if ctx.store != nil {
-		ctx.store.CreateService(vsID, opts)
 	}
 
 	return nil
@@ -239,6 +242,14 @@ func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error
 		opts.Port,
 		vsID)
 
+	// create backend to external store
+	if ctx.store != nil {
+		if err := ctx.store.CreateBackend(vsID, rsID, opts); err != nil {
+			log.Errorf("error while create backend : %s", err)
+			return err
+		}
+	}
+
 	if err := ctx.ipvs.AddDestPort(
 		vs.options.host.String(),
 		vs.options.Port,
@@ -256,11 +267,6 @@ func (ctx *Context) createBackend(vsID, rsID string, opts *BackendOptions) error
 
 	// Fire off the configured pulse goroutine, attach it to the Context.
 	go ctx.backends[rsID].monitor.Loop(pulse.ID{VsID: vsID, RsID: rsID}, ctx.pulseCh, ctx.stopCh)
-
-	// create backend to external store
-	if ctx.store != nil {
-		ctx.store.CreateBackend(vsID, rsID, opts)
-	}
 
 	return nil
 }
@@ -355,6 +361,13 @@ func (ctx *Context) removeService(vsID string) (*ServiceOptions, error) {
 		return nil, ErrIpvsSyscallFailed
 	}
 
+	// delete service from external store
+	if ctx.store != nil {
+		if err := ctx.store.RemoveService(vsID); err != nil {
+			log.Errorf("error while remove service : %s", err)
+		}
+	}
+
 	for rsID, backend := range ctx.backends {
 		if backend.service != vs {
 			continue
@@ -378,11 +391,6 @@ func (ctx *Context) removeService(vsID string) (*ServiceOptions, error) {
 		log.Errorf("error while removing service from Disco: %s", err)
 	}
 
-	// delete service from external store
-	if ctx.store != nil {
-		ctx.store.RemoveService(vsID)
-	}
-
 	return vs.options, nil
 }
 
@@ -403,6 +411,13 @@ func (ctx *Context) removeBackend(vsID, rsID string) (*BackendOptions, error) {
 
 	log.Infof("removing backend [%s/%s]", vsID, rsID)
 
+	// delete backend from external store
+	if ctx.store != nil {
+		if err := ctx.store.RemoveBackend(rsID); err != nil {
+			log.Errorf("error while remove backend : %s", err)
+		}
+	}
+
 	// Stop the pulse goroutine.
 	rs.monitor.Stop()
 
@@ -418,11 +433,6 @@ func (ctx *Context) removeBackend(vsID, rsID string) (*BackendOptions, error) {
 	}
 
 	delete(ctx.backends, rsID)
-
-	// delete backend from external store
-	if ctx.store != nil {
-		ctx.store.RemoveBackend(rsID)
-	}
 
 	return rs.options, nil
 }
