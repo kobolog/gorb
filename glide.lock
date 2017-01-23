@@ -1,6 +1,19 @@
-hash: afe3986c9b1ca48e7762b28f86e517abec78669de963da3b28a570a79ee3c3d7
-updated: 2017-01-04T18:49:41.842226843+01:00
+hash: c112b33dad2778b1648d36b1173fe4359a23a9b3d6cfac077394a87392bb9a89
+updated: 2017-01-24T22:33:57.388139383+09:00
 imports:
+- name: github.com/boltdb/bolt
+  version: a705895fdad108f053eae7ee011ed94a0541ee13
+- name: github.com/coreos/etcd
+  version: 0fea49f8fa399aa698426e7660d979f65c13bf26
+  subpackages:
+  - client
+  - pkg/pathutil
+  - pkg/types
+  - version
+- name: github.com/coreos/go-semver
+  version: 568e959cd89871e61434c1143528d9162da89ef2
+  subpackages:
+  - semver
 - name: github.com/docker/docker
   version: cbc4fd2131d06c0342a330843a02632034f1db7b
   subpackages:
@@ -22,22 +35,46 @@ imports:
   - types/versions
 - name: github.com/docker/go-units
   version: f2d77a61e3c169b43402a0a1e84f06daf29b8190
+- name: github.com/docker/libkv
+  version: 1d8431073ae03cdaedb198a89722f3aab6d418ef
+  subpackages:
+  - store
+  - store/boltdb
+  - store/consul
+  - store/etcd
+  - store/zookeeper
 - name: github.com/fsouza/go-dockerclient
   version: 1a3d0cfd7814bbfe44ada7617654948c99891749
 - name: github.com/gorilla/context
   version: aed02d124ae4a0e94fea4541c8effd05bf0c8296
 - name: github.com/gorilla/mux
   version: 9fa818a44c2bf1396a17f9d5a3c0f6dd39d2ff8e
+- name: github.com/hashicorp/consul
+  version: 07b91d9d20b62969e23181e7ae135935c88dab43
+  subpackages:
+  - api
 - name: github.com/hashicorp/go-cleanhttp
   version: ad28ea4487f05916463e2423a55166280e8254b5
+- name: github.com/hashicorp/serf
+  version: d3a67ab21bc8a4643fa53a3633f2d951dd50c6ca
+  subpackages:
+  - coordinate
 - name: github.com/opencontainers/runc
   version: 629e35666d31f743090452416c8df207d9fdbd34
   subpackages:
   - libcontainer/user
+- name: github.com/samuel/go-zookeeper
+  version: 1d7be4effb13d2d908342d349d71a284a7542693
+  subpackages:
+  - zk
 - name: github.com/Sirupsen/logrus
   version: f3cfb454f4c209e6668c95216c4744b8fddb2356
 - name: github.com/tehnerd/gnl2go
   version: 101b5c6e2d44eb00fbfe85917ffc0bf95249977b
+- name: github.com/ugorji/go
+  version: ded73eae5db7e7a0ef6f55aace87a2873c5d2b74
+  subpackages:
+  - codec
 - name: github.com/vishvananda/netlink
   version: 13fb20a9787c14bfc4c7996ce27d7224aa815812
   subpackages:
