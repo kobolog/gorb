@@ -6,7 +6,7 @@ go:
   - tip
 
 install:
-  - go get -v github.com/masterminds/glide
+  - go get -v github.com/Masterminds/glide
   - go get -u gopkg.in/alecthomas/gometalinter.v1
   - gometalinter.v1 --install
 
