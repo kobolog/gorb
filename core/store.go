@@ -1,13 +1,13 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"net/url"
 	"path"
 	"strings"
 	"time"
 
-	"encoding/json"
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -23,6 +23,7 @@ type Store struct {
 	storeServicePath string
 	storeBackendPath string
 	stopCh           chan struct{}
+	locker           *store.Locker
 }
 
 func NewStore(storeUrl, storeServicePath, storeBackendPath string, syncTime int64, context *Context) (*Store, error) {
@@ -51,12 +52,23 @@ func NewStore(storeUrl, storeServicePath, storeBackendPath string, syncTime int6
 		},
 	)
 
+	// create store locker
+	locker, err := kvstore.NewLock(
+		strings.Trim(path.Join(uri.Path, "gorblock"), "/"),
+		&store.LockOptions{Value: []byte("gorb"), TTL: 20 * time.Second},
+	)
+	if err != nil {
+		kvstore.Close()
+		return nil, err
+	}
+
 	store := &Store{
 		ctx:              context,
 		kvstore:          kvstore,
 		storeServicePath: path.Join(uri.Path, storeServicePath),
 		storeBackendPath: path.Join(uri.Path, storeBackendPath),
 		stopCh:           make(chan struct{}),
+		locker:           &locker,
 	}
 
 	context.SetStore(store)
@@ -79,18 +91,25 @@ func NewStore(storeUrl, storeServicePath, storeBackendPath string, syncTime int6
 }
 
 func (s *Store) Sync() {
+	if _, err := (*s.locker).Lock(nil); err != nil {
+		log.Errorf("error while acquire lock : %s", err)
+		return
+	}
 	// build external services map
 	services, err := s.getExternalServices()
 	if err != nil {
 		log.Errorf("error while get services: %s", err)
+		(*s.locker).Unlock()
 		return
 	}
 	// build external backends map
 	backends, err := s.getExternalBackends()
 	if err != nil {
 		log.Errorf("error while get backends: %s", err)
+		(*s.locker).Unlock()
 		return
 	}
+	(*s.locker).Unlock()
 	// synchronize context
 	s.ctx.Synchronize(services, backends)
 }
@@ -141,6 +160,10 @@ func (s *Store) Close() {
 }
 
 func (s *Store) CreateService(vsID string, opts *ServiceOptions) error {
+	if _, err := (*s.locker).Lock(nil); err != nil {
+		return err
+	}
+	defer (*s.locker).Unlock()
 	// put to store
 	if err := s.put(s.storeServicePath+"/"+vsID, opts, false); err != nil {
 		log.Errorf("error while put service to store: %s", err)
@@ -150,6 +173,10 @@ func (s *Store) CreateService(vsID string, opts *ServiceOptions) error {
 }
 
 func (s *Store) CreateBackend(vsID, rsID string, opts *BackendOptions) error {
+	if _, err := (*s.locker).Lock(nil); err != nil {
+		return err
+	}
+	defer (*s.locker).Unlock()
 	opts.VsID = vsID
 	// put to store
 	if err := s.put(s.storeBackendPath+"/"+rsID, opts, false); err != nil {
@@ -160,6 +187,10 @@ func (s *Store) CreateBackend(vsID, rsID string, opts *BackendOptions) error {
 }
 
 func (s *Store) UpdateBackend(vsID, rsID string, opts *BackendOptions) error {
+	if _, err := (*s.locker).Lock(nil); err != nil {
+		return err
+	}
+	defer (*s.locker).Unlock()
 	opts.VsID = vsID
 	// put to store
 	if err := s.put(s.storeBackendPath+"/"+rsID, opts, true); err != nil {
@@ -170,6 +201,11 @@ func (s *Store) UpdateBackend(vsID, rsID string, opts *BackendOptions) error {
 }
 
 func (s *Store) RemoveService(vsID string) error {
+	if _, err := (*s.locker).Lock(nil); err != nil {
+		return err
+	}
+	defer (*s.locker).Unlock()
+	// remove from store
 	if err := s.kvstore.DeleteTree(s.storeServicePath + "/" + vsID); err != nil {
 		log.Errorf("error while delete service from store: %s", err)
 		return err
@@ -178,6 +214,11 @@ func (s *Store) RemoveService(vsID string) error {
 }
 
 func (s *Store) RemoveBackend(rsID string) error {
+	if _, err := (*s.locker).Lock(nil); err != nil {
+		return err
+	}
+	defer (*s.locker).Unlock()
+	// remove from store
 	if err := s.kvstore.DeleteTree(s.storeBackendPath + "/" + rsID); err != nil {
 		log.Errorf("error while delete backend from store: %s", err)
 		return err
