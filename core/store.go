@@ -26,7 +26,7 @@ type Store struct {
 	locker           *store.Locker
 }
 
-func NewStore(storeUrl, storeServicePath, storeBackendPath string, syncTime int64, context *Context) (*Store, error) {
+func NewStore(storeUrl, storeServicePath, storeBackendPath string, context *Context) (*Store, error) {
 	uri, err := url.Parse(storeUrl)
 	if err != nil {
 		return nil, err
@@ -73,21 +73,27 @@ func NewStore(storeUrl, storeServicePath, storeBackendPath string, syncTime int6
 
 	context.SetStore(store)
 
-	store.Sync()
+	return store, nil
+}
+
+func (s *Store) StartSync(syncTime int64) {
+	s.Sync()
 	storeTimer := time.NewTicker(time.Duration(syncTime) * time.Second)
 	go func() {
 		for {
 			select {
 			case <-storeTimer.C:
-				store.Sync()
-			case <-store.stopCh:
+				s.Sync()
+			case <-s.stopCh:
 				storeTimer.Stop()
 				return
 			}
 		}
 	}()
+}
 
-	return store, nil
+func (s *Store) Close() {
+	close(s.stopCh)
 }
 
 func (s *Store) Sync() {
@@ -153,10 +159,6 @@ func (s *Store) getExternalBackends() (map[string]*BackendOptions, error) {
 		backends[s.getID(kvpair.Key)] = &options
 	}
 	return backends, nil
-}
-
-func (s *Store) Close() {
-	close(s.stopCh)
 }
 
 func (s *Store) CreateService(vsID string, opts *ServiceOptions) error {
