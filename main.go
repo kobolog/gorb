@@ -37,14 +37,18 @@ import (
 
 var (
 	// Version get dynamically set to git rev by ldflags at build time
-	Version = "DEV"
+	Version          = "DEV"
 
-	debug        = flag.Bool("v", false, "enable verbose output")
-	device       = flag.String("i", "eth0", "default interface to bind services on")
-	flush        = flag.Bool("f", false, "flush IPVS pools on start")
-	listen       = flag.String("l", ":4672", "endpoint to listen for HTTP requests")
-	consul       = flag.String("c", "", "URL for Consul HTTP API")
-	vipInterface = flag.String("vipi", "", "interface to add VIPs")
+	debug            = flag.Bool("v", false, "enable verbose output")
+	device           = flag.String("i", "eth0", "default interface to bind services on")
+	flush            = flag.Bool("f", false, "flush IPVS pools on start")
+	listen           = flag.String("l", ":4672", "endpoint to listen for HTTP requests")
+	consul           = flag.String("c", "", "URL for Consul HTTP API")
+	vipInterface     = flag.String("vipi", "", "interface to add VIPs")
+	storeURL         = flag.String("store", "", "store url for sync data")
+	storeTimeout     = flag.Int64("store-sync-time", 60, "sync-time for store")
+	storeServicePath = flag.String("store-service-path", "services", "store service path")
+	storeBackendPath = flag.String("store-backend-path", "backends", "store backend path")
 )
 
 func main() {
@@ -77,11 +81,11 @@ func main() {
 	}
 
 	ctx, err := core.NewContext(core.ContextOptions{
-		Disco:        *consul,
-		Endpoints:    hostIPs,
-		Flush:        *flush,
-		ListenPort:   listenPort,
-		VipInterface: *vipInterface})
+		Disco:            *consul,
+		Endpoints:        hostIPs,
+		Flush:            *flush,
+		ListenPort:       listenPort,
+		VipInterface:     *vipInterface})
 
 	if err != nil {
 		log.Fatalf("error while initializing server context: %s", err)
@@ -89,6 +93,16 @@ func main() {
 
 	// While it's not strictly required, close IPVS socket explicitly.
 	defer ctx.Close()
+
+	// sync with external store
+	if storeURL != nil && len(*storeURL) > 0 {
+		store, err := core.NewStore(*storeURL, *storeServicePath, *storeBackendPath, *storeTimeout, ctx)
+		if err != nil {
+			log.Fatalf("error while initializing external store sync: %s", err)
+		}
+		defer store.Close()
+	}
+
 	core.RegisterPrometheusExporter(ctx)
 	r := mux.NewRouter()
 

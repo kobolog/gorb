@@ -5,3 +5,4 @@ import:
 - package: github.com/gorilla/mux
 - package: github.com/tehnerd/gnl2go
 - package: github.com/vishvananda/netlink
+- package: github.com/docker/libkv
