@@ -71,8 +71,6 @@ func NewStore(storeUrl, storeServicePath, storeBackendPath string, context *Cont
 		locker:           &locker,
 	}
 
-	context.SetStore(store)
-
 	return store, nil
 }
 

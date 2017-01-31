@@ -98,6 +98,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("error while initializing external store sync: %s", err)
 		}
+		ctx.SetStore(store)
 		store.StartSync(*storeTimeout)
 		defer store.Close()
 	}
