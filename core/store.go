@@ -102,14 +102,14 @@ func (s *Store) Sync() {
 		return
 	}
 	// build external services map
-	services, err := s.getExternalServices()
+	services, err := s.getServices()
 	if err != nil {
 		log.Errorf("error while get services: %s", err)
 		(*s.locker).Unlock()
 		return
 	}
 	// build external backends map
-	backends, err := s.getExternalBackends()
+	backends, err := s.getBackends()
 	if err != nil {
 		log.Errorf("error while get backends: %s", err)
 		(*s.locker).Unlock()
@@ -120,7 +120,15 @@ func (s *Store) Sync() {
 	s.ctx.Synchronize(services, backends)
 }
 
-func (s *Store) getExternalServices() (map[string]*ServiceOptions, error) {
+func (s *Store) GetServices() (map[string]*ServiceOptions, error) {
+	if _, err := (*s.locker).Lock(nil); err != nil {
+		return nil, err
+	}
+	defer (*s.locker).Unlock()
+	return s.getServices()
+}
+
+func (s *Store) getServices() (map[string]*ServiceOptions, error) {
 	services := make(map[string]*ServiceOptions)
 	// build external service map (temporary all services)
 	kvlist, err := s.kvstore.List(s.storeServicePath)
@@ -141,7 +149,15 @@ func (s *Store) getExternalServices() (map[string]*ServiceOptions, error) {
 	return services, nil
 }
 
-func (s *Store) getExternalBackends() (map[string]*BackendOptions, error) {
+func (s *Store) GetBackends() (map[string]*BackendOptions, error) {
+	if _, err := (*s.locker).Lock(nil); err != nil {
+		return nil, err
+	}
+	defer (*s.locker).Unlock()
+	return s.getBackends()
+}
+
+func (s *Store) getBackends() (map[string]*BackendOptions, error) {
 	backends := make(map[string]*BackendOptions)
 	// build external backend map
 	kvlist, err := s.kvstore.List(s.storeBackendPath)
