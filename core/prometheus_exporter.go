@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -14,37 +16,37 @@ var (
 	serviceHealth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_health",
-		Help:      "TODO",
+		Help:      "Health of the load balancer service",
 	}, []string{"name", "host", "port", "protocol", "method", "persistent"})
 
 	serviceBackends = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backends",
-		Help:      "TODO",
+		Help:      "Number of backends in the load balancer service",
 	}, []string{"name", "host", "port", "protocol", "method", "persistent"})
 
 	serviceBackendUptimeTotal = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backend_uptime_seconds",
-		Help:      "TODO",
+		Help:      "Uptime in seconds of a backend service",
 	}, []string{"service_name", "name", "host", "port", "method"})
 
 	serviceBackendHealth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backend_health",
-		Help:      "TODO",
+		Help:      "Health of a backend service",
 	}, []string{"service_name", "name", "host", "port", "method"})
 
 	serviceBackendStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backend_status",
-		Help:      "TODO",
+		Help:      "Status of a backend service",
 	}, []string{"service_name", "name", "host", "port", "method"})
 
 	serviceBackendWeight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backend_weight",
-		Help:      "TODO",
+		Help:      "Weight of a backend service",
 	}, []string{"service_name", "name", "host", "port", "method"})
 )
 
@@ -59,7 +61,6 @@ func NewExporter(ctx *Context) *Exporter {
 }
 
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-	fmt.Printf("Describing metrics...\n")
 	serviceHealth.Describe(ch)
 	serviceBackends.Describe(ch)
 	serviceBackendUptimeTotal.Describe(ch)
@@ -69,35 +70,43 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	fmt.Printf("Collecting metrics...\n")
+	if err := e.collect(); err != nil {
+		log.Errorf("error collecting metrics: %s", err)
+		return
+	}
+	serviceHealth.Collect(ch)
+	serviceBackends.Collect(ch)
+	serviceBackendUptimeTotal.Collect(ch)
+	serviceBackendHealth.Collect(ch)
+	serviceBackendStatus.Collect(ch)
+	serviceBackendWeight.Collect(ch)
+}
+
+func (e *Exporter) collect() error {
 	e.ctx.mutex.RLock()
 	defer e.ctx.mutex.RUnlock()
-	// TODO - update metrics
+
 	for serviceName, _ := range e.ctx.services {
 		service, err := e.ctx.GetService(serviceName)
 		if err != nil {
-			// do something about it
-			fmt.Printf("Error getting service %s - %s\n", serviceName, err.Error())
+			return errors.Wrap(err, "error getting service: %s", serviceName)
 		}
-		fmt.Printf("serviceName %s - service %+v\n", serviceName, service)
+
 		serviceHealth.WithLabelValues(serviceName, service.Options.Host, fmt.Sprintf("%d", service.Options.Port),
 			service.Options.Protocol, service.Options.Method, fmt.Sprintf("%t", service.Options.Persistent)).
 			Set(service.Health)
+
 		serviceBackends.WithLabelValues(serviceName, service.Options.Host, fmt.Sprintf("%d", service.Options.Port),
 			service.Options.Protocol, service.Options.Method, fmt.Sprintf("%t", service.Options.Persistent)).
 			Set(float64(len(service.Backends)))
-		fmt.Printf("Going to collect metric for %d backends\n", len(service.Backends))
-		if len(service.Backends) == 0 {
-			continue
-		}
+
 		for i := 0; i < len(service.Backends); i++ {
 			backendName := service.Backends[i]
 			backend, err := e.ctx.GetBackend(serviceName, backendName)
 			if err != nil {
-				// do something about it
-				fmt.Printf("Error getting backend %s from service %s - %s\n", backendName, serviceName, err.Error())
+				return errors.Wrap(err, "error getting backend %s from service %s", backendName, serviceName)
 			}
-			fmt.Printf("backendName %s - backend %+v\n", backendName, backend)
+
 			serviceBackendUptimeTotal.WithLabelValues(serviceName, backendName, backend.Options.Host,
 				fmt.Sprintf("%d", backend.Options.Port), backend.Options.Method).
 				Set(backend.Metrics.Uptime.Seconds())
@@ -114,17 +123,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 				fmt.Sprintf("%d", backend.Options.Port), backend.Options.Method).
 				Set(float64(backend.Options.Weight))
 		}
-
 	}
-	serviceHealth.Collect(ch)
-	serviceBackends.Collect(ch)
-	serviceBackendUptimeTotal.Collect(ch)
-	serviceBackendHealth.Collect(ch)
-	serviceBackendStatus.Collect(ch)
-	serviceBackendWeight.Collect(ch)
-
+	return nil
 }
-
 func RegisterPrometheusExporter(ctx *Context) {
 	prometheus.MustRegister(NewExporter(ctx))
 }
