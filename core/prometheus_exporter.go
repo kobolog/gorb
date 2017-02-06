@@ -89,7 +89,7 @@ func (e *Exporter) collect() error {
 	for serviceName, _ := range e.ctx.services {
 		service, err := e.ctx.GetService(serviceName)
 		if err != nil {
-			return errors.Wrap(err, "error getting service: %s", serviceName)
+			return errors.Wrap(err, fmt.Sprintf("error getting service: %s", serviceName))
 		}
 
 		serviceHealth.WithLabelValues(serviceName, service.Options.Host, fmt.Sprintf("%d", service.Options.Port),
@@ -104,7 +104,7 @@ func (e *Exporter) collect() error {
 			backendName := service.Backends[i]
 			backend, err := e.ctx.GetBackend(serviceName, backendName)
 			if err != nil {
-				return errors.Wrap(err, "error getting backend %s from service %s", backendName, serviceName)
+				return errors.Wrap(err, fmt.Sprintf("error getting backend %s from service %s", backendName, serviceName))
 			}
 
 			serviceBackendUptimeTotal.WithLabelValues(serviceName, backendName, backend.Options.Host,

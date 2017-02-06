@@ -6,3 +6,9 @@ import:
 - package: github.com/tehnerd/gnl2go
 - package: github.com/vishvananda/netlink
 - package: github.com/docker/libkv
+- package: github.com/pkg/errors
+  version: v0.8.0
+- package: github.com/prometheus/client_golang
+  version: v0.8.0
+  subpackages:
+  - prometheus
