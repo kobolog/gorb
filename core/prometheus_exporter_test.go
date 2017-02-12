@@ -7,9 +7,9 @@ import (
 )
 
 func TestCollector(t *testing.T) {
-	ctx, err := NewContext(ContextOptions{})
-	if err != nil {
-		t.Fatal(err)
+	ctx := &Context{
+		services: make(map[string]*service),
+		backends: make(map[string]*backend),
 	}
 	ctx.services["service1"] = &service{options: &ServiceOptions{
 		Host:       "localhost",
@@ -26,7 +26,7 @@ func TestCollector(t *testing.T) {
 		VsID:   "service1",
 	}, service: ctx.services["service1"], monitor: &pulse.Pulse{}}
 	exporter := NewExporter(ctx)
-	err = exporter.collect()
+	err := exporter.collect()
 	if err != nil {
 		t.Fatal(err)
 	}
