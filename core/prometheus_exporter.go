@@ -17,37 +17,37 @@ var (
 		Namespace: namespace,
 		Name:      "service_health",
 		Help:      "Health of the load balancer service",
-	}, []string{"name", "host", "port", "protocol", "method", "persistent"})
+	}, []string{"name", "host", "port", "protocol"})
 
 	serviceBackends = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backends",
 		Help:      "Number of backends in the load balancer service",
-	}, []string{"name", "host", "port", "protocol", "method", "persistent"})
+	}, []string{"name", "host", "port", "protocol"})
 
 	serviceBackendUptimeTotal = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backend_uptime_seconds",
 		Help:      "Uptime in seconds of a backend service",
-	}, []string{"service_name", "name", "host", "port", "method"})
+	}, []string{"service_name", "name", "host", "port"})
 
 	serviceBackendHealth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backend_health",
 		Help:      "Health of a backend service",
-	}, []string{"service_name", "name", "host", "port", "method"})
+	}, []string{"service_name", "name", "host", "port"})
 
 	serviceBackendStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backend_status",
 		Help:      "Status of a backend service",
-	}, []string{"service_name", "name", "host", "port", "method"})
+	}, []string{"service_name", "name", "host", "port"})
 
 	serviceBackendWeight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "service_backend_weight",
 		Help:      "Weight of a backend service",
-	}, []string{"service_name", "name", "host", "port", "method"})
+	}, []string{"service_name", "name", "host", "port"})
 )
 
 type Exporter struct {
@@ -93,11 +93,11 @@ func (e *Exporter) collect() error {
 		}
 
 		serviceHealth.WithLabelValues(serviceName, service.Options.Host, fmt.Sprintf("%d", service.Options.Port),
-			service.Options.Protocol, service.Options.Method, fmt.Sprintf("%t", service.Options.Persistent)).
+			service.Options.Protocol).
 			Set(service.Health)
 
 		serviceBackends.WithLabelValues(serviceName, service.Options.Host, fmt.Sprintf("%d", service.Options.Port),
-			service.Options.Protocol, service.Options.Method, fmt.Sprintf("%t", service.Options.Persistent)).
+			service.Options.Protocol).
 			Set(float64(len(service.Backends)))
 
 		for i := 0; i < len(service.Backends); i++ {
@@ -108,19 +108,19 @@ func (e *Exporter) collect() error {
 			}
 
 			serviceBackendUptimeTotal.WithLabelValues(serviceName, backendName, backend.Options.Host,
-				fmt.Sprintf("%d", backend.Options.Port), backend.Options.Method).
+				fmt.Sprintf("%d", backend.Options.Port)).
 				Set(backend.Metrics.Uptime.Seconds())
 
 			serviceBackendHealth.WithLabelValues(serviceName, backendName, backend.Options.Host,
-				fmt.Sprintf("%d", backend.Options.Port), backend.Options.Method).
+				fmt.Sprintf("%d", backend.Options.Port)).
 				Set(backend.Metrics.Health)
 
 			serviceBackendStatus.WithLabelValues(serviceName, backendName, backend.Options.Host,
-				fmt.Sprintf("%d", backend.Options.Port), backend.Options.Method).
+				fmt.Sprintf("%d", backend.Options.Port)).
 				Set(float64(backend.Metrics.Status))
 
 			serviceBackendWeight.WithLabelValues(serviceName, backendName, backend.Options.Host,
-				fmt.Sprintf("%d", backend.Options.Port), backend.Options.Method).
+				fmt.Sprintf("%d", backend.Options.Port)).
 				Set(float64(backend.Options.Weight))
 		}
 	}
