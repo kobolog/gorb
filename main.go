@@ -96,10 +96,12 @@ func main() {
 
 	// sync with external store
 	if storeURL != nil && len(*storeURL) > 0 {
-		store, err := core.NewStore(*storeURL, *storeServicePath, *storeBackendPath, *storeTimeout, ctx)
+		store, err := core.NewStore(*storeURL, *storeServicePath, *storeBackendPath, ctx)
 		if err != nil {
 			log.Fatalf("error while initializing external store sync: %s", err)
 		}
+		ctx.SetStore(store)
+		store.StartSync(*storeTimeout)
 		defer store.Close()
 	}
 
