@@ -31,6 +31,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -101,6 +103,7 @@ func main() {
 		defer store.Close()
 	}
 
+	core.RegisterPrometheusExporter(ctx)
 	r := mux.NewRouter()
 
 	r.Handle("/service/{vsID}", serviceCreateHandler{ctx}).Methods("PUT")
@@ -111,6 +114,7 @@ func main() {
 	r.Handle("/service", serviceListHandler{ctx}).Methods("GET")
 	r.Handle("/service/{vsID}", serviceStatusHandler{ctx}).Methods("GET")
 	r.Handle("/service/{vsID}/{rsID}", backendStatusHandler{ctx}).Methods("GET")
+	r.Handle("/metrics", prometheus.Handler()).Methods("GET")
 
 	log.Infof("setting up HTTP server on %s", *listen)
 	log.Fatal(http.ListenAndServe(*listen, r))

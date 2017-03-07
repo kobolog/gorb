@@ -1,6 +1,10 @@
-hash: c112b33dad2778b1648d36b1173fe4359a23a9b3d6cfac077394a87392bb9a89
-updated: 2017-01-24T22:33:57.388139383+09:00
+hash: 0c88aeea95d45e3d67a3e994aeded11c4b92d3ebf924968a6fcdd1758bd42cca
+updated: 2017-02-06T02:35:56.225845426Z
 imports:
+- name: github.com/beorn7/perks
+  version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+  subpackages:
+  - quantile
 - name: github.com/boltdb/bolt
   version: a705895fdad108f053eae7ee011ed94a0541ee13
 - name: github.com/coreos/etcd
@@ -45,6 +49,10 @@ imports:
   - store/zookeeper
 - name: github.com/fsouza/go-dockerclient
   version: 1a3d0cfd7814bbfe44ada7617654948c99891749
+- name: github.com/golang/protobuf
+  version: 4bd1920723d7b7c925de087aa32e2187708897f7
+  subpackages:
+  - proto
 - name: github.com/gorilla/context
   version: aed02d124ae4a0e94fea4541c8effd05bf0c8296
 - name: github.com/gorilla/mux
@@ -59,10 +67,32 @@ imports:
   version: d3a67ab21bc8a4643fa53a3633f2d951dd50c6ca
   subpackages:
   - coordinate
+- name: github.com/matttproud/golang_protobuf_extensions
+  version: c12348ce28de40eed0136aa2b644d0ee0650e56c
+  subpackages:
+  - pbutil
 - name: github.com/opencontainers/runc
   version: 629e35666d31f743090452416c8df207d9fdbd34
   subpackages:
   - libcontainer/user
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: github.com/prometheus/client_golang
+  version: c5b7fccd204277076155f10851dad72b76a49317
+  subpackages:
+  - prometheus
+- name: github.com/prometheus/client_model
+  version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+  subpackages:
+  - go
+- name: github.com/prometheus/common
+  version: dd2f054febf4a6c00f2343686efb775948a8bff4
+  subpackages:
+  - expfmt
+  - internal/bitbucket.org/ww/goautoneg
+  - model
+- name: github.com/prometheus/procfs
+  version: 1878d9fbb537119d24b21ca07effd591627cd160
 - name: github.com/samuel/go-zookeeper
   version: 1d7be4effb13d2d908342d349d71a284a7542693
   subpackages:
