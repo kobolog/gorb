@@ -21,7 +21,6 @@
 package util
 
 import (
-	"bytes"
 	"net"
 	"syscall"
 )
@@ -32,22 +31,8 @@ const (
 	IPv6 = syscall.AF_INET6
 )
 
-// All IP addresses are stored as 16-byte slices internally and
-// there's no built-in function to tell them apart.
-const (
-	v4Length = 4
-	v6Length = 16
-)
-
-var v4Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
-
-// AddrFamily returns the address family of an IP address.
 func AddrFamily(ip net.IP) int {
-	if len(ip) == v4Length {
-		return IPv4
-	}
-
-	if len(ip) == v6Length && bytes.HasPrefix(ip, v4Prefix) {
+	if ip.To4() != nil {
 		return IPv4
 	}
 
