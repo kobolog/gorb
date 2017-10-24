@@ -5,7 +5,7 @@ TAG = 0.0
 PREFIX = kobolog/gorb
 
 binary:
-	CGO_ENABLED=0 GOOS=linux godep go build -a -ldflags '-w' -o docker/gorb
+	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w' -o docker/gorb
 
 container: binary
 	docker build -t $(PREFIX):$(TAG) docker
