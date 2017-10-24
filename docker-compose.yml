@@ -1,0 +1,8 @@
+version: '2'
+services:
+    dev-go:
+        build: .
+        volumes: 
+            - ./:/go/src/github.com/kobolog/gorb
+
+
