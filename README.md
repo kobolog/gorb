@@ -30,7 +30,8 @@ address automatically based on the configured default device:
     "port": 12345,
     "protocol": "tcp|udp",
     "method": "rr|wrr|lc|wlc|lblc|lblcr|sh|dh|sed|nq|...",
-    "persistent": true
+    "persistent": true,
+    "flags": "sh-fallback|sh-port",
 }
 ```
 - `PUT /service/<service>/<backend>` creates a new backend attached to a virtual service:
@@ -55,6 +56,8 @@ address automatically based on the configured default device:
 - `DELETE /service/<service>/<backend>` removes the specified backend from the virtual service.
 - `GET /service/<service>` returns virtual service configuration.
 - `GET /service/<service>/<backend>` returns backend configuration and its health check metrics.
+- `PATCH /service/<service>` update virtual service configuration.
+- `PATCH /service/<service>/<backend>` update backend configuration and its health check metrics.
 
 For more information and various configuration options description, consult [`man 8 ipvsadm`](http://linux.die.net/man/8/ipvsadm).
 

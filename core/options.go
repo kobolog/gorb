@@ -36,6 +36,7 @@ var (
 	ErrMissingEndpoint = errors.New("endpoint information is missing")
 	ErrUnknownMethod   = errors.New("specified forwarding method is unknown")
 	ErrUnknownProtocol = errors.New("specified protocol is unknown")
+	ErrUnknownFlag     = errors.New("specified flag is unknown")
 )
 
 // ContextOptions configure Context behavior.
@@ -53,6 +54,7 @@ type ServiceOptions struct {
 	Port       uint16 `json:"port"`
 	Protocol   string `json:"protocol"`
 	Method     string `json:"method"`
+	Flags      string `json:"flags"`
 	Persistent bool   `json:"persistent"`
 
 	// Host string resolved to an IP, including DNS lookup.
@@ -96,6 +98,10 @@ func (o *ServiceOptions) Validate(defaultHost net.IP) error {
 		return ErrUnknownProtocol
 	}
 
+	if o.Flags != "sh-fallback" && o.Flags != "sh-port" && o.Flags != "" && o.Flags != "sh-fallback|sh-port" && o.Flags != "sh-port|sh-fallback" {
+		return ErrUnknownFlag
+	}
+
 	if len(o.Method) == 0 {
 		// WRR since Pulse will dynamically reweight backends.
 		o.Method = "wrr"
@@ -112,6 +118,9 @@ func (o *ServiceOptions) CompareStoreOptions(options *ServiceOptions) bool {
 		return false
 	}
 	if o.Protocol != options.Protocol {
+		return false
+	}
+	if o.Flags != options.Flags {
 		return false
 	}
 	if o.Method != options.Method {

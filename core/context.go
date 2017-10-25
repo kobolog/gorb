@@ -186,15 +186,51 @@ func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
 		}
 	}
 
-	if err := ctx.ipvs.AddService(
-		opts.host.String(),
-		opts.Port,
-		opts.protocol,
-		opts.Method,
-	); err != nil {
-		log.Errorf("error while creating virtual service: %s", err)
-		return ErrIpvsSyscallFailed
-	}
+    if opts.Flags == "sh-fallback" {
+      if err := ctx.ipvs.AddServiceWithFlags(
+          opts.host.String(),
+          opts.Port,
+          opts.protocol,
+          opts.Method,
+          gnl2go.BIN_IP_VS_SVC_F_SCHED_SH_FALLBACK,
+      ); err != nil {
+          log.Errorf("error while creating virtual service: %s", err)
+          return ErrIpvsSyscallFailed
+      }
+    } else if opts.Flags == "sh-port" {
+      if err := ctx.ipvs.AddServiceWithFlags(
+          opts.host.String(),
+          opts.Port,
+          opts.protocol,
+          opts.Method,
+          gnl2go.BIN_IP_VS_SVC_F_SCHED_SH_PORT,
+      ); err != nil {
+          log.Errorf("error while creating virtual service: %s", err)
+          return ErrIpvsSyscallFailed
+      }
+    } else if opts.Flags == "sh-fallback|sh-port" || opts.Flags == "sh-port|sh-fallback" {
+      if err := ctx.ipvs.AddServiceWithFlags(
+          opts.host.String(),
+          opts.Port,
+          opts.protocol,
+          opts.Method,
+          gnl2go.U32ToBinFlags(
+                        gnl2go.IP_VS_SVC_F_SCHED_SH_FALLBACK|gnl2go.IP_VS_SVC_F_SCHED_SH_PORT),
+      ); err != nil {
+          log.Errorf("error while creating virtual service: %s", err)
+          return ErrIpvsSyscallFailed
+      }
+    } else {
+      if err := ctx.ipvs.AddService(
+          opts.host.String(),
+          opts.Port,
+          opts.protocol,
+          opts.Method,
+      ); err != nil {
+          log.Errorf("error while creating virtual service: %s", err)
+          return ErrIpvsSyscallFailed
+      }
+    }
 
 	ctx.services[vsID] = &service{options: opts}
 
