@@ -34,6 +34,9 @@ address automatically based on the configured default device:
     "flags": "sh-fallback|sh-port",
 }
 ```
+
+This scheduler has two flags: sh-fallback, which enables fallback to a different server if the selected server was unavailable, and sh-port, which adds the source port number to the hash computation.
+
 - `PUT /service/<service>/<backend>` creates a new backend attached to a virtual service:
 ```json
 {
