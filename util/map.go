@@ -22,6 +22,7 @@ package util
 
 import (
 	"reflect"
+	"strconv"
 )
 
 // DynamicMap are arbitrary options passed directly to the driver.
@@ -33,6 +34,8 @@ func (do DynamicMap) Get(key string, d interface{}) interface{} {
 		return d
 	} else if vt, dt := reflect.TypeOf(v), reflect.TypeOf(d); vt.ConvertibleTo(dt) {
 		return v
+	} else if y, err := strconv.ParseInt(v.(string), 10, 64); err == nil {
+		return int(y)
 	} else {
 		return d
 	}
