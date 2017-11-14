@@ -23,6 +23,7 @@ package util
 import (
 	"reflect"
 	"strconv"
+	"unicode"
 )
 
 // DynamicMap are arbitrary options passed directly to the driver.
@@ -34,9 +35,19 @@ func (do DynamicMap) Get(key string, d interface{}) interface{} {
 		return d
 	} else if vt, dt := reflect.TypeOf(v), reflect.TypeOf(d); vt.ConvertibleTo(dt) {
 		return v
-	} else if y, err := strconv.ParseInt(v.(string), 10, 64); err == nil {
-		return int(y)
+	} else if isInt(v.(string)) {
+		convertedValue, _ := strconv.Atoi(v.(string))
+		return convertedValue
 	} else {
 		return d
 	}
+}
+
+func isInt(s string) bool {
+	for _, c := range s {
+		if !unicode.IsDigit(c) {
+			return false
+		}
+	}
+	return true
 }

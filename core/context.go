@@ -33,14 +33,19 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/tehnerd/gnl2go"
+	"strings"
 )
 
 // Possible runtime errors.
 var (
+	schedulerFlags = map[string]int{
+		"sh-fallback": gnl2go.IP_VS_SVC_F_SCHED_SH_FALLBACK,
+		"sh-port": gnl2go.IP_VS_SVC_F_SCHED_SH_PORT,
+	}
 	ErrIpvsSyscallFailed = errors.New("error while calling into IPVS")
-	ErrObjectExists      = errors.New("specified object already exists")
-	ErrObjectNotFound    = errors.New("unable to locate specified object")
-	ErrIncompatibleAFs   = errors.New("incompatible address families")
+	ErrObjectExists = errors.New("specified object already exists")
+	ErrObjectNotFound = errors.New("unable to locate specified object")
+	ErrIncompatibleAFs = errors.New("incompatible address families")
 )
 
 type service struct {
@@ -56,7 +61,7 @@ type backend struct {
 
 // Context abstacts away the underlying IPVS bindings implementation.
 type Context struct {
-	ipvs         gnl2go.IpvsClient
+	ipvs         Ipvs
 	endpoint     net.IP
 	services     map[string]*service
 	backends     map[string]*backend
@@ -68,12 +73,24 @@ type Context struct {
 	store        *Store
 }
 
+type Ipvs interface {
+	Init() error
+	Exit()
+	Flush() error
+	AddService(vip string, port uint16, protocol uint16, sched string) error
+	AddServiceWithFlags(vip string, port uint16, protocol uint16, sched string, flags []byte) error
+	DelService(vip string, port uint16, protocol uint16) error
+	AddDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight int32, fwd uint32) error
+	UpdateDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16, weight int32, fwd uint32) error
+	DelDestPort(vip string, vport uint16, rip string, rport uint16, protocol uint16) error
+}
+
 // NewContext creates a new Context and initializes IPVS.
 func NewContext(options ContextOptions) (*Context, error) {
 	log.Info("initializing IPVS context")
 
 	ctx := &Context{
-		ipvs:     gnl2go.IpvsClient{},
+		ipvs:     &gnl2go.IpvsClient{},
 		services: make(map[string]*service),
 		backends: make(map[string]*backend),
 		pulseCh:  make(chan pulse.Update),
@@ -186,51 +203,33 @@ func (ctx *Context) createService(vsID string, opts *ServiceOptions) error {
 		}
 	}
 
-    if opts.Flags == "sh-fallback" {
-      if err := ctx.ipvs.AddServiceWithFlags(
-          opts.host.String(),
-          opts.Port,
-          opts.protocol,
-          opts.Method,
-          gnl2go.BIN_IP_VS_SVC_F_SCHED_SH_FALLBACK,
-      ); err != nil {
-          log.Errorf("error while creating virtual service: %s", err)
-          return ErrIpvsSyscallFailed
-      }
-    } else if opts.Flags == "sh-port" {
-      if err := ctx.ipvs.AddServiceWithFlags(
-          opts.host.String(),
-          opts.Port,
-          opts.protocol,
-          opts.Method,
-          gnl2go.BIN_IP_VS_SVC_F_SCHED_SH_PORT,
-      ); err != nil {
-          log.Errorf("error while creating virtual service: %s", err)
-          return ErrIpvsSyscallFailed
-      }
-    } else if opts.Flags == "sh-fallback|sh-port" || opts.Flags == "sh-port|sh-fallback" {
-      if err := ctx.ipvs.AddServiceWithFlags(
-          opts.host.String(),
-          opts.Port,
-          opts.protocol,
-          opts.Method,
-          gnl2go.U32ToBinFlags(
-                        gnl2go.IP_VS_SVC_F_SCHED_SH_FALLBACK|gnl2go.IP_VS_SVC_F_SCHED_SH_PORT),
-      ); err != nil {
-          log.Errorf("error while creating virtual service: %s", err)
-          return ErrIpvsSyscallFailed
-      }
-    } else {
-      if err := ctx.ipvs.AddService(
-          opts.host.String(),
-          opts.Port,
-          opts.protocol,
-          opts.Method,
-      ); err != nil {
-          log.Errorf("error while creating virtual service: %s", err)
-          return ErrIpvsSyscallFailed
-      }
-    }
+	var flags int
+	for _, flag := range strings.Split(opts.Flags, "|") {
+		flags = flags | schedulerFlags[flag]
+	}
+
+	if flags != 0 {
+		if err := ctx.ipvs.AddServiceWithFlags(
+			opts.host.String(),
+			opts.Port,
+			opts.protocol,
+			opts.Method,
+			gnl2go.U32ToBinFlags(uint32(flags)),
+		); err != nil {
+			log.Errorf("error while creating virtual service: %s", err)
+			return ErrIpvsSyscallFailed
+		}
+	} else {
+		if err := ctx.ipvs.AddService(
+			opts.host.String(),
+			opts.Port,
+			opts.protocol,
+			opts.Method,
+		); err != nil {
+			log.Errorf("error while creating virtual service: %s", err)
+			return ErrIpvsSyscallFailed
+		}
+	}
 
 	ctx.services[vsID] = &service{options: opts}
 

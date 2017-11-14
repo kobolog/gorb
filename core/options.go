@@ -98,8 +98,12 @@ func (o *ServiceOptions) Validate(defaultHost net.IP) error {
 		return ErrUnknownProtocol
 	}
 
-	if o.Flags != "sh-fallback" && o.Flags != "sh-port" && o.Flags != "" && o.Flags != "sh-fallback|sh-port" && o.Flags != "sh-port|sh-fallback" {
-		return ErrUnknownFlag
+	if o.Flags != "" {
+		for _, flag := range strings.Split(o.Flags, "|") {
+			if _, ok := schedulerFlags[flag]; !ok {
+				return ErrUnknownFlag
+			}
+		}
 	}
 
 	if len(o.Method) == 0 {

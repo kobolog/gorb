@@ -26,3 +26,4 @@ bin
 gorb
 vendor
 .glide
+.idea
