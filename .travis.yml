@@ -3,7 +3,7 @@ sudo: false
 language: go
 go:
   - 1.8
-  - tip
+  - 1.9
 
 install:
   - go get -v github.com/Masterminds/glide
