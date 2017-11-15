@@ -1,5 +1,5 @@
-hash: 0c88aeea95d45e3d67a3e994aeded11c4b92d3ebf924968a6fcdd1758bd42cca
-updated: 2017-02-06T02:35:56.225845426Z
+hash: 9eadca1318878044596583ad0f018af6703020f18f219b84a7a1efb0bc29746e
+updated: 2017-11-15T16:13:23.558940833Z
 imports:
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
@@ -81,6 +81,7 @@ imports:
   version: c5b7fccd204277076155f10851dad72b76a49317
   subpackages:
   - prometheus
+  - prometheus/promhttp
 - name: github.com/prometheus/client_model
   version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
   subpackages:
@@ -99,6 +100,12 @@ imports:
   - zk
 - name: github.com/Sirupsen/logrus
   version: f3cfb454f4c209e6668c95216c4744b8fddb2356
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  subpackages:
+  - assert
+  - mock
+  - require
 - name: github.com/tehnerd/gnl2go
   version: 101b5c6e2d44eb00fbfe85917ffc0bf95249977b
 - name: github.com/ugorji/go
@@ -128,8 +135,5 @@ testImports:
   version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
   subpackages:
   - difflib
-- name: github.com/stretchr/testify
-  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
-  subpackages:
-  - assert
-  - require
+- name: github.com/stretchr/objx
+  version: cbeaeb16a013161a98496fad62933b1d21786672

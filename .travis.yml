@@ -2,13 +2,14 @@ sudo: false
 
 language: go
 go:
-  - 1.7
+  - 1.8
   - tip
 
 install:
   - go get -v github.com/Masterminds/glide
   - go get -u gopkg.in/alecthomas/gometalinter.v1
   - gometalinter.v1 --install
+  - glide install -v 
 
 script:
   - ./.travis/test.sh

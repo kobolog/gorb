@@ -24,6 +24,6 @@ _testmain.go
 *.prof
 bin
 gorb
-vendor
 .glide
+vendor
 .idea
