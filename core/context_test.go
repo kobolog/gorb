@@ -73,6 +73,12 @@ func (f *fakeIpvs) DelDestPort(vip string, vport uint16, rip string, rport uint1
 	return args.Error(0)
 }
 
+func newRoutineContext(backends map[string]*backend, ipvs Ipvs) *Context {
+	c := newContext(ipvs, &fakeDisco{})
+	c.backends = backends
+	return c
+}
+
 func newContext(ipvs Ipvs, disco disco.Driver) *Context {
 	return &Context{
 		ipvs:     ipvs,
@@ -84,8 +90,10 @@ func newContext(ipvs Ipvs, disco disco.Driver) *Context {
 	}
 }
 
-const (
-	virtualServiceId = "vsID"
+var (
+	vsID = "virtualServiceId"
+	rsID = "realServerID"
+	virtualService = service{options: &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp"}}
 )
 
 func TestServiceIsCreated(t *testing.T) {
@@ -95,9 +103,9 @@ func TestServiceIsCreated(t *testing.T) {
 	c := newContext(mockIpvs, mockDisco)
 
 	mockIpvs.On("AddService", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh").Return(nil)
-	mockDisco.On("Expose", virtualServiceId, "127.0.0.1", uint16(80)).Return(nil)
+	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
 
-	err := c.createService(virtualServiceId, options)
+	err := c.createService(vsID, options)
 	assert.NoError(t, err)
 	mockIpvs.AssertExpectations(t)
 	mockDisco.AssertExpectations(t)
@@ -109,11 +117,55 @@ func TestServiceIsCreatedWithCustomFlags(t *testing.T) {
 	mockDisco := &fakeDisco{}
 	c := newContext(mockIpvs, mockDisco)
 
-	mockIpvs.On("AddServiceWithFlags", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh", gnl2go.U32ToBinFlags(gnl2go.IP_VS_SVC_F_SCHED_SH_FALLBACK|gnl2go.IP_VS_SVC_F_SCHED_SH_PORT)).Return(nil)
-	mockDisco.On("Expose", virtualServiceId, "127.0.0.1", uint16(80)).Return(nil)
+	mockIpvs.On("AddServiceWithFlags", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh", gnl2go.U32ToBinFlags(gnl2go.IP_VS_SVC_F_SCHED_SH_FALLBACK | gnl2go.IP_VS_SVC_F_SCHED_SH_PORT)).Return(nil)
+	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
 
-	err := c.createService(virtualServiceId, options)
+	err := c.createService(vsID, options)
 	assert.NoError(t, err)
 	mockIpvs.AssertExpectations(t)
 	mockDisco.AssertExpectations(t)
+}
+
+func TestPulseUpdateSetsBackendWeightToZeroOnStatusDown(t *testing.T) {
+	stash := make(map[pulse.ID]int32)
+	backends := map[string]*backend{rsID: &backend{service: &virtualService, options: &BackendOptions{Weight:100}}}
+	mockIpvs := &fakeIpvs{}
+
+	c := newRoutineContext(backends, mockIpvs)
+
+	mockIpvs.On("UpdateDestPort", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, int32(0), mock.Anything).Return(nil)
+
+	c.processPulseUpdate(stash, pulse.Update{pulse.ID{VsID: vsID, RsID: rsID}, pulse.Metrics{Status: pulse.StatusDown}})
+	assert.Equal(t, len(stash), 1)
+	assert.Equal(t, stash[pulse.ID{VsID: vsID, RsID: rsID}], int32(100))
+	mockIpvs.AssertExpectations(t)
+}
+
+func TestPulseUpdateIncreasesBackendWeightRelativeToTheHealthOnStatusUp(t *testing.T) {
+	stash := map[pulse.ID]int32{pulse.ID{VsID: vsID, RsID: rsID}: int32(12)}
+	backends := map[string]*backend{rsID: &backend{service: &virtualService, options: &BackendOptions{}}}
+	mockIpvs := &fakeIpvs{}
+
+	c := newRoutineContext(backends, mockIpvs)
+
+	mockIpvs.On("UpdateDestPort", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, int32(6), mock.Anything).Return(nil)
+
+	c.processPulseUpdate(stash, pulse.Update{pulse.ID{VsID: vsID, RsID: rsID}, pulse.Metrics{Status: pulse.StatusUp, Health:0.5}})
+	assert.Equal(t, len(stash), 1)
+	assert.Equal(t, stash[pulse.ID{VsID: vsID, RsID: rsID}], int32(12))
+	mockIpvs.AssertExpectations(t)
+}
+
+func TestPulseUpdateRemovesStashWhenBackendHasFullyRecovered(t *testing.T) {
+	stash := map[pulse.ID]int32{pulse.ID{VsID: vsID, RsID: rsID}: int32(12)}
+	backends := map[string]*backend{rsID: &backend{service: &virtualService, options: &BackendOptions{}}}
+	mockIpvs := &fakeIpvs{}
+
+	c := newRoutineContext(backends, mockIpvs)
+
+	mockIpvs.On("UpdateDestPort", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, int32(12), mock.Anything).Return(nil)
+
+	c.processPulseUpdate(stash, pulse.Update{pulse.ID{VsID: vsID, RsID: rsID}, pulse.Metrics{Status: pulse.StatusUp, Health:1}})
+	assert.Empty(t, stash)
+	mockIpvs.AssertExpectations(t)
 }
