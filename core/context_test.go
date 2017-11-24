@@ -169,3 +169,27 @@ func TestPulseUpdateRemovesStashWhenBackendHasFullyRecovered(t *testing.T) {
 	assert.Empty(t, stash)
 	mockIpvs.AssertExpectations(t)
 }
+
+func TestPulseUpdateRemovesStashWhenBackendIsDeleted(t *testing.T) {
+	stash := map[pulse.ID]int32{pulse.ID{VsID: vsID, RsID: rsID}: int32(0)}
+	backends := make(map[string]*backend)
+	mockIpvs := &fakeIpvs{}
+
+	c := newRoutineContext(backends, mockIpvs)
+	c.processPulseUpdate(stash, pulse.Update{pulse.ID{VsID: vsID, RsID: rsID}, pulse.Metrics{}})
+
+	assert.Empty(t, stash)
+	mockIpvs.AssertExpectations(t)
+}
+
+func TestPulseUpdateRemovesStashWhenDeletedAfterNotification(t *testing.T) {
+	stash := map[pulse.ID]int32{pulse.ID{VsID: vsID, RsID: rsID}: int32(0)}
+	backends := map[string]*backend{rsID: &backend{service: &virtualService, options: &BackendOptions{}}}
+	mockIpvs := &fakeIpvs{}
+
+	c := newRoutineContext(backends, mockIpvs)
+	c.processPulseUpdate(stash, pulse.Update{pulse.ID{VsID: vsID, RsID: rsID}, pulse.Metrics{Status:pulse.StatusRemoved}})
+
+	assert.Empty(t, stash)
+	mockIpvs.AssertExpectations(t)
+}

@@ -27,3 +27,5 @@ gorb
 .glide
 vendor
 .idea
+
+coverage.txt

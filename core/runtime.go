@@ -46,7 +46,11 @@ func (ctx *Context) processPulseUpdate(stash map[pulse.ID]int32, u pulse.Update)
 	ctx.mutex.Lock()
 
 	// check exist
-	if _, ok := ctx.backends[rsID]; !ok {
+	if _, ok := ctx.backends[rsID]; !ok || u.Metrics.Status == pulse.StatusRemoved {
+		if _, exists := stash[u.Source]; exists {
+			log.Debugf("backend %s has been deleted, so deleting it from stash too", u.Source)
+			delete(stash, u.Source)
+		}
 		ctx.mutex.Unlock()
 		return
 	}
@@ -75,6 +79,7 @@ func (ctx *Context) processPulseUpdate(stash map[pulse.ID]int32, u pulse.Update)
 		if _, err := ctx.UpdateBackend(vsID, rsID, weight); err != nil {
 			log.Errorf("error while unstashing a backend: %s", err)
 		} else if weight == stash[u.Source] {
+			log.Debugf("backend %s has completely recovered, so deleting it from stash.", u.Source)
 			// This means that the backend has completely recovered.
 			delete(stash, u.Source)
 		}
@@ -91,4 +96,3 @@ func (ctx *Context) processPulseUpdate(stash map[pulse.ID]int32, u pulse.Update)
 		}
 	}
 }
-
