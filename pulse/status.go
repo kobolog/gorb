@@ -32,6 +32,8 @@ const (
 	StatusUp StatusType = iota
 	// StatusDown means the backend is not responding to Pulse.
 	StatusDown
+	// StatusRemoved means the backend has been removed
+	StatusRemoved
 )
 
 func (status StatusType) String() string {
@@ -40,6 +42,8 @@ func (status StatusType) String() string {
 		return "Up"
 	case StatusDown:
 		return "Down"
+	case StatusRemoved:
+		return "Removed"
 	}
 
 	return "Unknown"

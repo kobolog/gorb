@@ -123,7 +123,11 @@ func TestPulseChannel(t *testing.T) {
 	require.NoError(t, err)
 
 	go bp.Loop(id, pulseCh, make(chan struct{}))
-	defer bp.Stop()
+	defer func() {
+		// stop and consume the status remove update
+		bp.Stop()
+		<-pulseCh
+	}()
 
 	update := <-pulseCh
 
@@ -139,6 +143,7 @@ func TestPulseStop(t *testing.T) {
 	var (
 		pulseCh = make(chan Update)
 		wg      sync.WaitGroup
+		id      = ID{"VsID", "rsID"}
 	)
 
 	defer close(pulseCh)
@@ -148,16 +153,19 @@ func TestPulseStop(t *testing.T) {
 
 	wg.Add(1)
 	go func() {
-		bp.Loop(ID{"VsID", "rsID"}, pulseCh, make(chan struct{}))
+		bp.Loop(id, pulseCh, make(chan struct{}))
 		wg.Done()
 	}()
 
-	// Cover the pulse.StatusDown.String() case.
-	<-pulseCh
-
-	// In theory, this can hang the test forever.
 	bp.Stop()
+
+	// consume the status remove update
+	update := <-pulseCh
+
 	wg.Wait()
+
+	assert.Equal(t, id, update.Source)
+	assert.Equal(t, StatusRemoved, update.Metrics.Status)
 }
 
 func TestNopDriver(t *testing.T) {

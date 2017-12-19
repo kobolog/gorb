@@ -93,6 +93,7 @@ func (p *Pulse) Loop(id ID, pulseCh chan Update, consumerStopCh <-chan struct{})
 			}
 		case <-p.stopCh:
 			log.Infof("stopping pulse for %s", id)
+			pulseCh <- Update{id, p.metrics.Update(StatusRemoved)}
 			return
 		}
 
