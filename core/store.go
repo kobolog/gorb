@@ -25,13 +25,29 @@ type Store struct {
 	stopCh           chan struct{}
 }
 
-func NewStore(storeUrl, storeServicePath, storeBackendPath string, syncTime int64, context *Context) (*Store, error) {
-	uri, err := url.Parse(storeUrl)
-	if err != nil {
-		return nil, err
+func NewStore(storeURLs []string, storeServicePath, storeBackendPath string, syncTime int64, context *Context) (*Store, error) {
+	var scheme string
+	var storePath string
+	var hosts []string
+	for _, storeURL := range storeURLs {
+		uri, err := url.Parse(storeURL)
+		if err != nil {
+			return nil, err
+		}
+		uriScheme := strings.ToLower(uri.Scheme)
+		if scheme != "" && scheme != uriScheme {
+			return nil, errors.New("schemes must be the same for all store URLs")
+		}
+		if storePath != "" && storePath != uri.Path {
+			return nil, errors.New("paths must be the same for all store URLs")
+		}
+		scheme = uriScheme
+		storePath = uri.Path
+		hosts = append(hosts, uri.Host)
 	}
+
 	var backend store.Backend
-	switch scheme := strings.ToLower(uri.Scheme); scheme {
+	switch scheme {
 	case "consul":
 		backend = store.CONSUL
 	case "etcd":
@@ -40,22 +56,27 @@ func NewStore(storeUrl, storeServicePath, storeBackendPath string, syncTime int6
 		backend = store.ZK
 	case "boltdb":
 		backend = store.BOLTDB
+	case "mock":
+		backend = "mock"
 	default:
-		return nil, errors.New("unsupported uri schema : " + uri.Scheme)
+		return nil, errors.New("unsupported uri scheme : " + scheme)
 	}
 	kvstore, err := libkv.NewStore(
 		backend,
-		[]string{uri.Host},
+		hosts,
 		&store.Config{
 			ConnectionTimeout: 10 * time.Second,
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	store := &Store{
 		ctx:              context,
 		kvstore:          kvstore,
-		storeServicePath: path.Join(uri.Path, storeServicePath),
-		storeBackendPath: path.Join(uri.Path, storeBackendPath),
+		storeServicePath: path.Join(storePath, storeServicePath),
+		storeBackendPath: path.Join(storePath, storeBackendPath),
 		stopCh:           make(chan struct{}),
 	}
 

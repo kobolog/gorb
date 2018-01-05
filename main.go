@@ -33,6 +33,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"strings"
 )
 
 var (
@@ -45,7 +46,8 @@ var (
 	listen           = flag.String("l", ":4672", "endpoint to listen for HTTP requests")
 	consul           = flag.String("c", "", "URL for Consul HTTP API")
 	vipInterface     = flag.String("vipi", "", "interface to add VIPs")
-	storeURL         = flag.String("store", "", "store url for sync data")
+	storeURLs        = flag.String("store", "", "comma delimited list of store urls for sync data. All urls must have" +
+		" identical schemes and paths.")
 	storeTimeout     = flag.Int64("store-sync-time", 60, "sync-time for store")
 	storeServicePath = flag.String("store-service-path", "services", "store service path")
 	storeBackendPath = flag.String("store-backend-path", "backends", "store backend path")
@@ -95,8 +97,9 @@ func main() {
 	defer ctx.Close()
 
 	// sync with external store
-	if storeURL != nil && len(*storeURL) > 0 {
-		store, err := core.NewStore(*storeURL, *storeServicePath, *storeBackendPath, *storeTimeout, ctx)
+	if storeURLs != nil && len(*storeURLs) > 0 {
+		urls := strings.Split(*storeURLs, ",")
+		store, err := core.NewStore(urls, *storeServicePath, *storeBackendPath, *storeTimeout, ctx)
 		if err != nil {
 			log.Fatalf("error while initializing external store sync: %s", err)
 		}
