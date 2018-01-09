@@ -111,7 +111,7 @@ func TestServiceIsCreated(t *testing.T) {
 	mockDisco.AssertExpectations(t)
 }
 
-func TestServiceIsCreatedWithCustomFlags(t *testing.T) {
+func TestServiceIsCreatedWithShFlags(t *testing.T) {
 	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "sh-port|sh-fallback"}
 	mockIpvs := &fakeIpvs{}
 	mockDisco := &fakeDisco{}
@@ -188,8 +188,24 @@ func TestPulseUpdateRemovesStashWhenDeletedAfterNotification(t *testing.T) {
 	mockIpvs := &fakeIpvs{}
 
 	c := newRoutineContext(backends, mockIpvs)
-	c.processPulseUpdate(stash, pulse.Update{pulse.ID{VsID: vsID, RsID: rsID}, pulse.Metrics{Status:pulse.StatusRemoved}})
+	c.processPulseUpdate(stash, pulse.Update{pulse.ID{VsID: vsID, RsID: rsID}, pulse.Metrics{Status: pulse.StatusRemoved}})
 
 	assert.Empty(t, stash)
 	mockIpvs.AssertExpectations(t)
+}
+
+func TestServiceIsCreatedWithGenericCustomFlags(t *testing.T) {
+	options := &ServiceOptions{Port: 80, Host: "localhost", Protocol: "tcp", Method: "sh", Flags: "flag-1|flag-2|flag-3"}
+	mockIpvs := &fakeIpvs{}
+	mockDisco := &fakeDisco{}
+	c := newContext(mockIpvs, mockDisco)
+
+	mockIpvs.On("AddServiceWithFlags", "127.0.0.1", uint16(80), uint16(syscall.IPPROTO_TCP), "sh",
+		gnl2go.U32ToBinFlags(gnl2go.IP_VS_SVC_F_SCHED1 | gnl2go.IP_VS_SVC_F_SCHED2 | gnl2go.IP_VS_SVC_F_SCHED3)).Return(nil)
+	mockDisco.On("Expose", vsID, "127.0.0.1", uint16(80)).Return(nil)
+
+	err := c.createService(vsID, options)
+	assert.NoError(t, err)
+	mockIpvs.AssertExpectations(t)
+	mockDisco.AssertExpectations(t)
 }

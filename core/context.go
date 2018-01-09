@@ -41,6 +41,9 @@ var (
 	schedulerFlags = map[string]int{
 		"sh-fallback": gnl2go.IP_VS_SVC_F_SCHED_SH_FALLBACK,
 		"sh-port": gnl2go.IP_VS_SVC_F_SCHED_SH_PORT,
+		"flag-1": gnl2go.IP_VS_SVC_F_SCHED1,
+		"flag-2": gnl2go.IP_VS_SVC_F_SCHED2,
+		"flag-3": gnl2go.IP_VS_SVC_F_SCHED3,
 	}
 	ErrIpvsSyscallFailed = errors.New("error while calling into IPVS")
 	ErrObjectExists = errors.New("specified object already exists")
