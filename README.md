@@ -64,6 +64,14 @@ This scheduler has two flags: sh-fallback, which enables fallback to a different
 
 For more information and various configuration options description, consult [`man 8 ipvsadm`](http://linux.die.net/man/8/ipvsadm).
 
+## Development
+
+Use glide to install dependencies:
+
+    glide install -v
+
+This should be done periodically to retrieve any updated dependencies.
+
 ## TODO
 
 - [ ] Add more options for Gorb Pulse: thresholds, exponential back-offs and so on.
