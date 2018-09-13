@@ -47,6 +47,7 @@ This scheduler has two flags: sh-fallback, which enables fallback to a different
         "type": "none|tcp|http",
         "args": {
             "method": "GET",
+            "port": 54321,
             "path": "/health",
             "expect": 200
         },

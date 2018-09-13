@@ -52,9 +52,12 @@ func newGETDriver(host string, port uint16, opts util.DynamicMap) (Driver, error
 		return errRedirects
 	}}
 
+	pulseHost := opts.Get("host", host).(string)
+	pulsePort := opts.Get("port", int(port)).(int)
+
 	u := url.URL{
 		Scheme: "http",
-		Host:   fmt.Sprintf("%s:%d", host, port),
+		Host:   fmt.Sprintf("%s:%d", pulseHost, pulsePort),
 		Path:   opts.Get("path", "/").(string)}
 
 	r, err := http.NewRequest(opts.Get("method", "GET").(string), u.String(), nil)
