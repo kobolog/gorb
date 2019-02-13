@@ -557,7 +557,7 @@ func (ctx *Context) GetBackend(vsID, rsID string) (*BackendInfo, error) {
 	return &BackendInfo{rs.options, rs.metrics}, nil
 }
 
-// if external kvstore exists, set store to context
+// SetStore: if external kvstore exists, set store to context
 func (ctx *Context) SetStore(store *Store) {
 	ctx.store = store
 }
