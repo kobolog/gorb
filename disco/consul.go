@@ -65,14 +65,14 @@ func (c *consulDisco) Expose(name, host string, port uint16) error {
 	u := *c.consul
 	u.Path = "v1/agent/service/register"
 
-	r, err := c.client.Post(
-		u.String(),
-		"application/json",
-		bytes.NewBuffer(util.MustMarshal(exposeRequest{
-			Name: name,
-			Host: host,
-			Port: port,
-		}, util.JSONOptions{})))
+	req, _:= http.NewRequest("PUT", u.String(), bytes.NewBuffer(util.MustMarshal(exposeRequest{
+		Name: name,
+		Host: host,
+		Port: port,
+	}, util.JSONOptions{})))
+
+	req.Header.Add("Content-Type", "application/json")
+	r, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,10 @@ func (c *consulDisco) Remove(name string) error {
 	u := *c.consul
 	u.Path = path.Join("v1/agent/service/deregister", name)
 
-	r, err := c.client.Get(u.String())
+	req, _:= http.NewRequest("PUT", u.String(),bytes.NewBuffer([]byte("")))
+
+	//r, err := c.client.Get(u.String())
+	r, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}
